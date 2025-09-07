@@ -4,12 +4,16 @@ Created on Mon Apr 28 16:20:56 2025
 
 @author: Patricio Orio
 """
+#%% Libraries
 
 import numpy as np
 import BOLDModel as bd
 import matplotlib.pyplot as plt
 
 
+#%% Parameters
+
+nnodes = 1
 dt = 0.01
 tstop = 50
 time=np.arange(0,tstop,dt)
@@ -17,19 +21,25 @@ time=np.arange(0,tstop,dt)
 x_t = np.zeros_like(time)
 x_t[time==35]=20
 
-BOLD = bd.Sim(x_t[:,None],1,0.01)
+# BOLD1
+BOLD = bd.Sim(x_t[:,None], nnodes, dt) # Sim(re, nnodes, dt)
 
-# bd.itauf = 5
+# Change Variables
+bd.itauf = 5        # Gamma
+bd.itaus = 1/0.8    # Kappa
 
-bd.itaus = 1/0.8
-
+# Recompile with new values
 bd.BOLD_response.recompile()
 
-BOLD2 = bd.Sim(x_t[:,None],1,0.01)
+# BOLD2
+BOLD2 = bd.Sim(x_t[:,None], nnodes, dt) # Sim(re, nnodes, dt)
+
+
+#%% Plots
 
 plt.figure(1)
 plt.clf()
-ax1=plt.subplot(111)
+ax1 = plt.subplot(111)
 ax1.plot(time,BOLD)
 ax1.plot(time,BOLD2)
 

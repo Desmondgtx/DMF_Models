@@ -56,6 +56,7 @@ BOLD_signals, rates, t = DMF.Sim(verbose = True, return_rates = True)
 
 print(time.perf_counter() - start)
 
+
 #%%
 BOLD_signals = BOLD_signals[int(120/BOLD_dt):,:]
 
@@ -84,6 +85,7 @@ f_r,psd_rates = signal.welch(rates[90000:-60000],fs=1000,axis=0,nperseg=5000)
 # FCDmat,FCs,shift = fcd.extract_FCD(BOLD_filt,wwidth=200,maxNwindows=500,
 #                                    olap=0.9,coldata=True,mode='corr',modeFCD='euclidean')
 
+
 #%%Plots
 
 bd.itauf = 1 / 0.6
@@ -99,6 +101,7 @@ f2,psd2 = signal.welch(BOLD2,fs=1/BOLD_dt,axis=0,nperseg=1500)
 f2_f,psd2_f = signal.welch(BOLD2_filt,fs=1/BOLD_dt,axis=0,nperseg=1500, noverlap=1000)
 
 FC2 = np.corrcoef(BOLD2_filt, rowvar=False)
+
 
 #%%
 
@@ -197,16 +200,12 @@ print(f"eucilidiana {Eucl}")
 # fcd.plotFC(FCs, minmax=[-1,1], cmap='jet', deltaT=0.1*shift)
 
 
-
 #%%
 
 plt.figure(4)
 plt.clf()
 plt.plot(BOLD_filt[:,::20])
 plt.plot(BOLD2_filt[:,::20],'--')
-
-
-
 
 
 

@@ -46,6 +46,8 @@ WC.CM = net
 # WC.P=np.random.uniform(0.3,0.4,nnodes)
 WC.P=.45
 
+
+
 #%%
 
 Vtrace,time=WC.Sim(verbose=True)    
@@ -78,6 +80,7 @@ phase = np.angle(analytic[remove_samples:-remove_samples,:])
 FC=np.corrcoef(envelope,rowvar=False)
 
 # FCphase=fcd.phaseFC(phase)
+
 
 #%%
         
@@ -157,6 +160,7 @@ for axi,ind in zip(axes2,windows):
 print(np.var(FCD[np.triu_indices(len(FCD),k=4)]))
 print(np.mean(np.diagonal(FCD,1)))
 
+
 #%%
 
 plt.figure(1,figsize=(10,8))
@@ -188,6 +192,8 @@ plt.title("Envelope correlation (FC)")
 # plt.yticks((0,5,10,15))
 
 plt.subplots_adjust(hspace=0.3)
+
+
 #%%
 plt.figure(3)
 plt.clf()
@@ -207,101 +213,10 @@ plt.subplot(313)
 plt.loglog(freq2,spec2[:,::5])
 # plt.xlim((0,30))
 
+
 #%%
 
 FCcluster.FCcluster(Pcorr,'PCA',6,varexp=0.5,minmax=[-1,1],Trun=100)
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Cargar datos empíricos
-FCempiric = datasets.load_fc(parcellation='aparc')[0]
-net = datasets.load_sc(parcellation='aparc')[0]
-net = net/np.max(net)
-net[net<0] = 0
-
-# Configuración base
-WC.CM = net
-WC.N = len(net)
-WC.tTrans = 50
-WC.tstop = 102
-WC.dt = 0.002
-WC.D = 0.002
-WC.rhoE = 0.14
-WC.tau_ip = 2
-WC.P = 0.45
-
-def run_WC_simulation(G_value):
-    """Ejecuta simulación con G específico"""
-    WC.G = G_value
-    
-    try:
-        # Simular
-        Vtrace, time = WC.Sim(verbose=False)
-        E_t = Vtrace[:,0,:]
-        
-        # Filtrar (5-15 Hz para Wilson-Cowan)
-        b, a = signal.bessel(4, [5*2*WC.dt, 15*2*WC.dt], btype='bandpass')
-        E_filt = signal.filtfilt(b, a, E_t, axis=0)
-        
-        # Envelope vía Hilbert
-        analytic = signal.hilbert(E_filt, axis=0)
-        
-        # Remover transitorio
-        remove_samples = int(1/WC.dt)
-        envelope = np.abs(analytic[remove_samples:-remove_samples,:])
-        
-        # FC de envelope
-        FC_sim = np.corrcoef(envelope, rowvar=False)
-        
-        # Comparar con empírico
-        FCvecE = FCempiric[np.tril_indices_from(FCempiric, -1)]
-        FCvecS = FC_sim[np.tril_indices_from(FC_sim, -1)]
-        
-        correlation = stats.pearsonr(FCvecE, FCvecS)[0]
-        
-        # Calcular FCD para estabilidad
-        FCD, _, _ = fcd.extract_FCD(envelope.T, maxNwindows=100, 
-                                     wwidth=5000, olap=0.75,
-                                     mode='corr', modeFCD='corr')
-        varFCD = np.var(FCD[np.triu_indices(len(FCD), k=4)])
-        
-        return correlation, varFCD
-        
-    except:
-        return -1, np.inf
-
-# Optimización específica para Wilson-Cowan
-G_range = np.arange(0.05, 0.20, 0.01)  # Rango apropiado para WC
-results = []
-
-for G_test in G_range:
-    print(f"Probando G = {G_test:.3f}")
-    np.random.seed(1)  # Reproducibilidad
-    
-    corr, var_fcd = run_WC_simulation(G_test)
-    
-    results.append({
-        'G': G_test,
-        'correlation': corr,
-        'FCD_variance': var_fcd
-    })
-    
-    print(f"  Correlación: {corr:.3f}, Var(FCD): {var_fcd:.3f}")
-
-# Encontrar óptimo
-correlations = [r['correlation'] for r in results]
-G_optimal = G_range[np.argmax(correlations)]
-print(f"\nG óptimo para WC: {G_optimal:.3f}")

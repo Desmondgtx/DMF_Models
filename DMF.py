@@ -25,6 +25,7 @@ dt = 0.001 #integration step in seconds
 downsampling = 1000 #BOLD downsampling
 downsampling_rates = 10 #Firing rates downsampling
 
+
 #Model parameters
 gE, gI = 310, 615 #slope (gain factors) of excitatory and inhibitory, respectively, input-to-output functions
 IthrE, IthrI = 0.403, 0.287 #thresholds current above which the firing rates increase linearly with the input currents
@@ -37,6 +38,7 @@ W_plus = 1.4 #weight of recurrent excitation
 sigma = 3 #Noise scaling factor
 JNMDA = 0.15 #weights all excitatory synaptic couplings
 G = 0 #Global coupling
+
 
 #Synaptic plasticity parameters
 target = 3 #target mean firing rate in Hz
@@ -53,10 +55,12 @@ def set_seed(seed):
 def rE(IE,gE,IthrE,dE):
     return(gE * (IE - IthrE) / (1 - np.exp(-dE * gE * (IE - IthrE))))
 
+
 #Input-to-output function (inhibitory)
 @vectorize([float64(float64,float64,float64,float64)],nopython=True)
 def rI(II,gI,IthrI,dI):
     return(gI * (II - IthrI) / (1 - np.exp(-dI * gI * (II - IthrI))))
+
     
 #Mean Field Model
 # @jit(float64[:,:],float64(float64[:,:],float64[:,:],float64[:]),nopython=True)  
@@ -77,6 +81,7 @@ def mean_field(y,SC,params):
        
     return np.vstack((SE_dot,SI_dot)), rE_t
 
+
 #Mean Field Model
 # @jit(float64[:,:](float64),nopython=True)  
 @njit
@@ -85,6 +90,7 @@ def Noise(sigma):
     SI_dot = sigma * np.random.normal(0,1,nnodes)
     
     return(np.vstack((SE_dot,SI_dot)))  
+
 
 #This recompiles the model functions
 def update():
@@ -203,6 +209,8 @@ def ParamsNode():
                 'dE','dI','I0','WE','WI','W_plus','sigma','JNMDA',
                 'target','tau_p'):
         pardict[var]=eval(var)
+        
+    
  #%%
 if __name__=="__main__":
     
@@ -234,8 +242,3 @@ if __name__=="__main__":
     plt.clf()
     plt.plot(BOLD_filt); 
 
-
-
-   
-
- 
