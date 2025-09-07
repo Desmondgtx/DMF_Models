@@ -29,7 +29,7 @@ bd.itauf = 5        # Gamma
 bd.itaus = 1/0.8    # Kappa
 
 # Recompile with new values
-bd.BOLD_response.recompile()
+bd.update()
 
 # BOLD2
 BOLD2 = bd.Sim(x_t[:,None], nnodes, dt) # Sim(re, nnodes, dt)

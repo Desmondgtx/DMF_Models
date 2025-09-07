@@ -4,6 +4,7 @@ Created on Wed Sep 16 10:54:54 2020
 
 @author: Carlos Coronel
 """
+#%% Libraries
 
 import numpy as np
 import BOLDModel as BD
@@ -12,6 +13,9 @@ from numba import jit,float64, vectorize,njit
 from numba.core.errors import NumbaPerformanceWarning
 import warnings
 warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
+
+
+#%% Parameters
 
 #Network parameters
 # SC = np.loadtxt('structural_Deco_AAL.txt')
@@ -25,7 +29,6 @@ dt = 0.001 #integration step in seconds
 downsampling = 1000 #BOLD downsampling
 downsampling_rates = 10 #Firing rates downsampling
 
-
 #Model parameters
 gE, gI = 310, 615 #slope (gain factors) of excitatory and inhibitory, respectively, input-to-output functions
 IthrE, IthrI = 0.403, 0.287 #thresholds current above which the firing rates increase linearly with the input currents
@@ -37,18 +40,20 @@ WE, WI = 1, 0.7 #scales the effective external input
 W_plus = 1.4 #weight of recurrent excitation
 sigma = 3 #Noise scaling factor
 JNMDA = 0.15 #weights all excitatory synaptic couplings
-G = 0 #Global coupling
-
+G = 1.1 #Global coupling
 
 #Synaptic plasticity parameters
 target = 3 #target mean firing rate in Hz
 
+
+#%% Functions
 
 @njit
 #This function is just for setting the random seed
 def set_seed(seed):
     np.random.seed(seed)
     return(seed)
+
 
 #Input-to-output function (excitatory)
 @vectorize([float64(float64,float64,float64,float64)],nopython=True)
@@ -200,9 +205,7 @@ def Sim(verbose = False, return_rates = False, seed = None):
             BOLD_Var += BD.BOLD_response(BOLD_Var, rE, i) * dt
         return Y_t, timeReal    
     
-    
-    
-        
+     
 def ParamsNode():
     pardict={}
     for var in ('gE','gI','IthrE','IthrI','tauNMDA','tauGABA','gamma',
@@ -211,7 +214,8 @@ def ParamsNode():
         pardict[var]=eval(var)
         
     
- #%%
+ #%% Plots
+ 
 if __name__=="__main__":
     
     import matplotlib.pyplot as plt    

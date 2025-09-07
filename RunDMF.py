@@ -8,6 +8,8 @@ Run a simulation using the Dynamic Mean Field (DMF) model. The output of the mod
 
 """
 
+#%% Libraries
+
 import numpy as np
 from scipy import signal,stats
 import DMF as DMF
@@ -17,56 +19,55 @@ import BOLDModel as bd
 import time
 
 
-
 #%%
+
 # import Regularity as Reg
 
-#Simulation parameters
+# Simulation parameters
 DMF.tmax = 1020 # 1050 #Total simulation time in seconds
 DMF.dt = 0.001 #integration step in seconds. Suggestion: don't move
-
-
 DMF_ratio = 1/DMF.dt   # Tr deseado
-
 decimate = 10
 DMF.downsampling = int(DMF_ratio/decimate)
 DMF.downsampling_rates = 1
 BOLD_dt =  DMF.dt*DMF.downsampling #Inverse of the BOLD sampling rate
 
 
-#Network parameters
-
+# Network parameters
 struct = np.loadtxt("SC_opti_25julio.txt")
 FCe = np.load("average_90x90FC_HCPchina_symm.npy")
 # struct = np.loadtxt('structural_Deco_AAL.txt')
 DMF.SC = struct / np.mean(np.sum(struct,0))
 DMF.nnodes = len(DMF.SC)
 
-#Model parameters
-DMF.G = 1.1 #Global coupling
-DMF.sigma = 0.4# 0.25 #Noise scaling factor
+
+# Model parameters
+DMF.G = 1.1         #Global coupling
+DMF.sigma = 0.4     # 0.25 #Noise scaling factor
 
 
-#Updating model
+#Update new parameters
 DMF.update()
 
 start = time.perf_counter()
-#Simulating
+
+# Simulating
 BOLD_signals, rates, t = DMF.Sim(verbose = True, return_rates = True)
 
 print(time.perf_counter() - start)
 
 
 #%%
+
 BOLD_signals = BOLD_signals[int(120/BOLD_dt):,:]
 
-#Filtering
+# Filtering
 a0,b0 = signal.bessel(3,[2 * BOLD_dt * 0.01, 2 * BOLD_dt * 0.1], btype = 'bandpass')
 BOLD_filt = signal.filtfilt(a0, b0, BOLD_signals, axis = 0)
 BOLD_filt = BOLD_filt[int(60/BOLD_dt):-int(60/BOLD_dt)]
 
 
-#Functional connectivity (FC) matrix - Pearson Matrix Correlation
+# Functional connectivity (FC) matrix - Pearson Matrix Correlation
 FC = np.corrcoef(BOLD_filt.T)
 
 ## Formula of Pearson's correlation = r(x,y) = cov(x,y) / (σ_x * σ_y)
@@ -86,7 +87,7 @@ f_r,psd_rates = signal.welch(rates[90000:-60000],fs=1000,axis=0,nperseg=5000)
 #                                    olap=0.9,coldata=True,mode='corr',modeFCD='euclidean')
 
 
-#%%Plots
+#%% Plots
 
 bd.itauf = 1 / 0.6
 bd.BOLD_response.recompile()
@@ -207,15 +208,4 @@ plt.clf()
 plt.plot(BOLD_filt[:,::20])
 plt.plot(BOLD2_filt[:,::20],'--')
 
-
-
-# Si quisieras ver qué regiones correlacionan:
-import matplotlib.pyplot as plt
-
-# Visualizar matriz FC
-plt.imshow(FC, cmap='jet', vmin=-1, vmax=1)
-plt.colorbar(label='Correlación de Pearson')
-plt.xlabel('Región AAL90')
-plt.ylabel('Región AAL90')
-plt.title('Conectividad Funcional (90x90)')
 
