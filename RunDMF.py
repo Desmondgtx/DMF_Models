@@ -189,15 +189,6 @@ print(f"correlacion {stats.pearsonr(FCvecE,FCvecS)[0]}")
 Eucl = np.sqrt(np.sum((FCvecE-FCvecS)**2))
 print(f"eucilidiana {Eucl}")
 
-# Results
-# G 1.2
-# correlacion 0.41279023391245373
-# eucilidiana 14.80675974340166
-
-# G 1.1
-# correlacion 0.41534311588720385
-# eucilidiana 11.573264728628093
-
 
 # fcd.plotFC(FCs, minmax=[-1,1], cmap='jet', deltaT=0.1*shift)
 
@@ -210,57 +201,3 @@ plt.plot(BOLD_filt[:,::20])
 plt.plot(BOLD2_filt[:,::20],'--')
 
 
-
-data_to_matlab = {
-    'BOLD_signals': BOLD_signals,      # Serie temporal BOLD simulada
-    'FC_matrix': FC,                   # Matriz de conectividad funcional
-    'time_series': rates,              # Firing rates originales (ground truth)
-    'parameters': {
-        'G': 1.07,
-        'sigma': DMF.sigma,
-        'dt': DMF.dt
-    }
-}
-
-savemat('data_for_rsHRF.mat', data_to_matlab)
-
-
-
-# VERSIÓN MEJORADA para rsHRF
-data_to_matlab = {
-    # DATOS PRINCIPALES
-    'BOLD_raw': BOLD_signals,          # [tiempo x regiones] BOLD sin filtrar
-    'BOLD_filtered': BOLD_filt,        # [tiempo x regiones] BOLD filtrado
-    'firing_rates': rates,             # [tiempo x regiones] Ground truth neuronal
-    
-    # INFORMACIÓN TEMPORAL
-    'TR': BOLD_dt,                     # Tiempo de repetición (segundos)
-    'time_vector': t[::DMF.downsampling], # Vector de tiempo para BOLD
-    'time_vector_neural': np.arange(0, len(rates)) * DMF.dt, # Tiempo neuronal
-    
-    # MATRICES DE CONECTIVIDAD
-    'FC_simulated': FC,                # FC del modelo [90x90]
-    'FC_empirical': FCe,               # FC empírica [90x90]
-    'SC_matrix': DMF.SC,               # Conectividad estructural [90x90]
-    
-    # PARÁMETROS DEL MODELO
-    'parameters': {
-        'G': DMF.G,                    # Global coupling
-        'sigma': DMF.sigma,            # Ruido
-        'dt_neural': DMF.dt,           # dt de simulación neuronal
-        'dt_BOLD': BOLD_dt,            # dt de BOLD (TR)
-        'n_regions': DMF.nnodes,       # Número de regiones
-        'simulation_time': DMF.tmax,   # Tiempo total simulado
-    },
-    
-    # METADATOS
-    'info': {
-        'filter_band': [0.01, 0.1],   # Banda de filtrado Hz
-        'filter_type': 'bessel_order3',
-        'transient_removed': 120,      # Segundos removidos al inicio
-        'trim_edges': 60,              # Segundos removidos en bordes
-    }
-}
-
-
-savemat('data_for_rsHRF.mat', data_to_matlab)
