@@ -12,6 +12,7 @@ Run a simulation using the Dynamic Mean Field (DMF) model. The output of the mod
 
 import numpy as np
 from scipy import signal,stats
+from scipy.io import savemat
 import DMF as DMF
 import matplotlib.pyplot as plt
 from anarpy.utils.FCDutil import fcd
@@ -42,7 +43,7 @@ DMF.nnodes = len(DMF.SC)
 
 
 # Model parameters
-DMF.G = 1.1         #Global coupling
+DMF.G = 1.07        #Global coupling
 DMF.sigma = 0.4     # 0.25 #Noise scaling factor
 
 
@@ -209,3 +210,57 @@ plt.plot(BOLD_filt[:,::20])
 plt.plot(BOLD2_filt[:,::20],'--')
 
 
+
+data_to_matlab = {
+    'BOLD_signals': BOLD_signals,      # Serie temporal BOLD simulada
+    'FC_matrix': FC,                   # Matriz de conectividad funcional
+    'time_series': rates,              # Firing rates originales (ground truth)
+    'parameters': {
+        'G': 1.07,
+        'sigma': DMF.sigma,
+        'dt': DMF.dt
+    }
+}
+
+savemat('data_for_rsHRF.mat', data_to_matlab)
+
+
+
+# VERSIÓN MEJORADA para rsHRF
+data_to_matlab = {
+    # DATOS PRINCIPALES
+    'BOLD_raw': BOLD_signals,          # [tiempo x regiones] BOLD sin filtrar
+    'BOLD_filtered': BOLD_filt,        # [tiempo x regiones] BOLD filtrado
+    'firing_rates': rates,             # [tiempo x regiones] Ground truth neuronal
+    
+    # INFORMACIÓN TEMPORAL
+    'TR': BOLD_dt,                     # Tiempo de repetición (segundos)
+    'time_vector': t[::DMF.downsampling], # Vector de tiempo para BOLD
+    'time_vector_neural': np.arange(0, len(rates)) * DMF.dt, # Tiempo neuronal
+    
+    # MATRICES DE CONECTIVIDAD
+    'FC_simulated': FC,                # FC del modelo [90x90]
+    'FC_empirical': FCe,               # FC empírica [90x90]
+    'SC_matrix': DMF.SC,               # Conectividad estructural [90x90]
+    
+    # PARÁMETROS DEL MODELO
+    'parameters': {
+        'G': DMF.G,                    # Global coupling
+        'sigma': DMF.sigma,            # Ruido
+        'dt_neural': DMF.dt,           # dt de simulación neuronal
+        'dt_BOLD': BOLD_dt,            # dt de BOLD (TR)
+        'n_regions': DMF.nnodes,       # Número de regiones
+        'simulation_time': DMF.tmax,   # Tiempo total simulado
+    },
+    
+    # METADATOS
+    'info': {
+        'filter_band': [0.01, 0.1],   # Banda de filtrado Hz
+        'filter_type': 'bessel_order3',
+        'transient_removed': 120,      # Segundos removidos al inicio
+        'trim_edges': 60,              # Segundos removidos en bordes
+    }
+}
+
+
+savemat('data_for_rsHRF.mat', data_to_matlab)

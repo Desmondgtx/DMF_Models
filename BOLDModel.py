@@ -168,7 +168,6 @@ def ParamsBOLD():
         
     return pardict    
     
-
 #%% Plots
 
 if __name__=="__main__":

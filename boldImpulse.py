@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Apr 28 16:20:56 2025
-
 @author: Patricio Orio
 """
 #%% Libraries

@@ -1,11 +1,14 @@
 """
 Función para optimizar el parámetro G (Global Coupling) del modelo DMF
 """
-
+#%% Libraries
 import numpy as np
 from scipy import signal, stats
 import DMF
 import matplotlib.pyplot as plt
+
+
+#%% Functions
 
 def optimize_G(G_range=(0.8, 2.0), step=0.1, verbose=True, plot_results=True):
     """
@@ -99,12 +102,12 @@ def optimize_G(G_range=(0.8, 2.0), step=0.1, verbose=True, plot_results=True):
             best_G = G
             best_FC = FC.copy()
             if verbose:
-                print(f"  → Nuevo mejor!")
+                print("Nuevo mejor")
     
     if verbose:
         print(f"\nÓptimo: G = {best_G}, correlación = {best_correlation:.3f}")
     
-    # Generar plots si se solicita
+    # Generar plots
     if plot_results and best_FC is not None:
         fig, axes = plt.subplots(1, 3, figsize=(15, 4))
         
@@ -142,12 +145,14 @@ def optimize_G(G_range=(0.8, 2.0), step=0.1, verbose=True, plot_results=True):
     
     return best_G, best_correlation, best_FC
 
-# Ejemplo de uso con G=0.9 para visualización
+#%% Run Function
+
 if __name__ == "__main__":
-    # Para probar con G=0.9 específicamente
     G_optimo, correlacion_max, FC_optimo = optimize_G(
-        G_range=(0.9, 1),  # Solo evalúa G=0.9
+        G_range=(1.0, 1.2), 
         step=0.01,
         verbose=True,
         plot_results=True
     )
+
+# G Optimo: 1.07

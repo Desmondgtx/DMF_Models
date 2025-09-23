@@ -30,17 +30,17 @@ downsampling = 1000 #BOLD downsampling
 downsampling_rates = 10 #Firing rates downsampling
 
 #Model parameters
-gE, gI = 310, 615 #slope (gain factors) of excitatory and inhibitory, respectively, input-to-output functions
-IthrE, IthrI = 0.403, 0.287 #thresholds current above which the firing rates increase linearly with the input currents
-tauNMDA, tauGABA = 0.1, 0.01 #Gating decay time constants
-gamma = 0.641 #control NMDA receptors gating time decay
-dE, dI = 0.16, 0.087 #onstants determining the shape of the curvature of H around Ith
-I0 = 0.382 #The overall effective external input
-WE, WI = 1, 0.7 #scales the effective external input
-W_plus = 1.4 #weight of recurrent excitation
-sigma = 3 #Noise scaling factor
-JNMDA = 0.15 #weights all excitatory synaptic couplings
-G = 1.1 #Global coupling
+gE, gI = 310, 615               #slope (gain factors) of excitatory and inhibitory, respectively, input-to-output functions
+IthrE, IthrI = 0.403, 0.287     #thresholds current above which the firing rates increase linearly with the input currents
+tauNMDA, tauGABA = 0.1, 0.01    #Gating decay time constants
+gamma = 0.641                   #control NMDA receptors gating time decay
+dE, dI = 0.16, 0.087            #onstants determining the shape of the curvature of H around Ith
+I0 = 0.382                      #The overall effective external input
+WE, WI = 1, 0.7                 #scales the effective external input
+W_plus = 1.4                    #weight of recurrent excitation
+sigma = 3                       #Noise scaling factor
+JNMDA = 0.15                    #weights all excitatory synaptic couplings
+G = 1.1                         #Global coupling
 
 #Synaptic plasticity parameters
 target = 3 #target mean firing rate in Hz
@@ -202,7 +202,7 @@ def Sim(verbose = False, return_rates = False, seed = None):
                 print("%g of %g s"%(int(timeSim[i]),tmax))
             derivs, rE = mean_field(neural_Var, SC, params)
             neural_Var += derivs * dt + Noise(sigma) * np.sqrt(dt)
-            BOLD_Var += BD.BOLD_response(BOLD_Var, rE, i) * dt
+            BOLD_Var += BD.BOLD_response(BOLD_Var, rE, i) * dt      # Convolution
         return Y_t, timeReal    
     
      
@@ -220,7 +220,7 @@ if __name__=="__main__":
     
     import matplotlib.pyplot as plt    
 
-    G = 1.1
+    G = 1.07
     sigma=0.1
     update()
     BOLD_signals,t = Sim(verbose = True)
@@ -245,4 +245,5 @@ if __name__=="__main__":
     plt.figure(4)
     plt.clf()
     plt.plot(BOLD_filt); 
+
 
