@@ -1,0 +1,17 @@
+.git
+.gitignore
+node_modules
+npm-debug.log
+Dockerfile*
+README.md
+CONTRIBUTORS.md 
+index.md 
+NEWS.md
+_config.yml 
+.circleci 
+MANIFEST.in
+.vscode
+**/.DS_Store
+**/*.pyc
+**/*.pyo
+*.egg-info/*
