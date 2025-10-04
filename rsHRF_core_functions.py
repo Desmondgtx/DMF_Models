@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Oct  3 22:43:53 2025
-
-@author: yangy
-"""
-
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
