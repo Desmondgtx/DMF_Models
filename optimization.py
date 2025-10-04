@@ -1,6 +1,9 @@
 """
-Función para optimizar el parámetro G (Global Coupling) del modelo DMF
+Created on Fri Oct  3 22:14:19 2025
+
+@author: Diego Garrido
 """
+
 #%% Libraries
 import numpy as np
 from scipy import signal, stats

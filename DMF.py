@@ -1,9 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Sep 16 10:54:54 2020
-
-@author: Carlos Coronel
-"""
 #%% Libraries
 
 import numpy as np
@@ -245,5 +239,6 @@ if __name__=="__main__":
     plt.figure(4)
     plt.clf()
     plt.plot(BOLD_filt); 
+
 
 
