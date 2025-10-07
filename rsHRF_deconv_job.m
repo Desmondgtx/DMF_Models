@@ -1,3 +1,5 @@
+
+
 function out = rsHRF_deconv_job(job,data,data_nuisancerm,flag_ROI, outdir, v, smask_ind, flag_nii_gii)
 [Nscans,nvar_data] = size(data);
 name = job.raw_outname;
