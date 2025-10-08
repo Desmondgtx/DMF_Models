@@ -119,7 +119,7 @@ def BOLD_signal(q, v):
     v: numpy array. blood volumen over time.
     """
     
-    # Herzog et al. (2024) p. 1603 Formula 3.D
+    # Stephan et al., 2007 (p. 388) - BOLD signal change equation
     b_dot = V0 * (k1 * (1 - q) + k2 * (1 - q / v) + k3 * (1 - v))
     
     return(b_dot)
