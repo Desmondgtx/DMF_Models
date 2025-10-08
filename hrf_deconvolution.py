@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Sistema Independiente de Estimación HRF y Deconvolución
-Diseñado específicamente para integrarse con simulaciones DMF
-Sin dependencias de rsHRF u otras librerías externas
-Solo usa: numpy, scipy, matplotlib
+Created on Mon Oct 06 16:20:56 2025
+@author: Diego Garrido
 """
+
+#%% Librerías
 
 import numpy as np
 from scipy import signal, linalg, stats, optimize
@@ -14,9 +14,17 @@ import matplotlib.pyplot as plt
 import warnings
 warnings.filterwarnings('ignore')
 
-# Importar tus módulos existentes
 import DMF
 import BOLDModel as BD
+
+
+
+#%%
+# Canonical HRF functions 
+# - Two gamma functions
+# - Two derivates (multivariate Taylo expansion: temporal derivative and dispersion derivative)
+
+
 
 
 # ============================================================================
