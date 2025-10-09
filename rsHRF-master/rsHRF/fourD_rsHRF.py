@@ -61,7 +61,7 @@ def demo_rsHRF(input_file, mask_file, output_dir, para, p_jobs, file_type=".nii"
                 data   = v1.agg_data()
                 brain  = np.nanvar(data, -1, ddof=0) 
             print('Done')
-        voxel_ind  = np.where(brain > 0)[0]
+        voxel_ind  = np.where(np.atleast_1d(brain) > 0)[0]
         mask_shape = data.shape[:-1]
         nobs       = data.shape[-1]
         data1      = np.reshape(data, (-1, nobs), order='F').T
@@ -113,7 +113,7 @@ def demo_rsHRF(input_file, mask_file, output_dir, para, p_jobs, file_type=".nii"
         if not wiener:
             H = np.fft.fft(
                 np.append(hrf,
-                          np.zeros((nobs - max(hrf.shape), 1))), axis=0)
+                          np.zeros(nobs - max(hrf.shape))), axis=0)
             M = np.fft.fft(bold_sig_deconv[:, voxel_id])
             data_deconv[:, voxel_id] = \
                 np.fft.ifft(H.conj() * M / (H * H.conj() + .1*np.mean((H * H.conj()))))
@@ -162,7 +162,7 @@ def demo_rsHRF(input_file, mask_file, output_dir, para, p_jobs, file_type=".nii"
             if file_type == ".nii" or file_type == ".nii.gz" :
                 mask_data[:, :, :, i] = dat3
             else:
-                mask_data[:, i] = dat3
+                mask_data[i, :] = dat3
             dat3 = dat3.flatten(order='F')
         spm_dep.spm.spm_write_vol(v1, mask_data, fname, file_type)
     pos = 0
