@@ -162,7 +162,10 @@ def demo_rsHRF(input_file, mask_file, output_dir, para, p_jobs, file_type=".nii"
             if file_type == ".nii" or file_type == ".nii.gz" :
                 mask_data[:, :, :, i] = dat3
             else:
-                mask_data[i, :] = dat3
+                if file_type == ".nii" or file_type == ".nii.gz":
+                    mask_data = np.zeros(data.shape)
+                else:
+                    mask_data = np.zeros((data.shape[0], nobs))
             dat3 = dat3.flatten(order='F')
         spm_dep.spm.spm_write_vol(v1, mask_data, fname, file_type)
     pos = 0

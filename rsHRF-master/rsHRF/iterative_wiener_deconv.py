@@ -1,4 +1,4 @@
-import pywavelets
+import pywt
 import numpy as np 
 from   rsHRF.processing import knee 
 
@@ -10,7 +10,7 @@ def rsHRF_iterative_wiener_deconv(y, h, Iterations=1000):
     Y            = np.fft.fft(y, axis=0)
     
     # Replace pywavelets.wavedec with pywt.wavedec
-    coeffs       = pywavelets.wavedec(abs(y), 'db2', level=1)
+    coeffs       = pywt.wavedec(abs(y), 'db2', level=1)
     
     # Replace pywavelets.wnoisest with custom noise estimation using MAD
     # Extract detail coefficients (last element in coeffs list)
