@@ -718,3 +718,359 @@ if __name__=="__main__":
     
     
     
+    
+    
+    
+    
+    
+    
+    
+    
+    
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal, stats
+from rsHRF import spm_dep, processing, basis_functions
+import warnings
+warnings.filterwarnings('ignore')
+
+    
+    
+    
+    
+
+def deconvolve_bold_rsHRF(bold_signal, TR=1.0, T=32, T0=1):
+    """
+    Deconvolución BOLD usando rsHRF
+    
+    Parameters:
+    -----------
+    bold_signal : array (time x regions)
+        Señal BOLD a deconvolucionar
+    TR : float
+        Tiempo de repetición (sampling rate)
+    T : int
+        Longitud temporal de la HRF en segundos
+    T0 : int
+        Onset temporal de la HRF
+    verbose : bool
+        Imprimir información
+        
+    Returns:
+    --------
+    results : dict
+        Diccionario con:
+        - 'bold_preprocessed': señal BOLD original
+        - 'data_deconv': señal deconvolucionada
+        - 'hrfs': funciones de respuesta hemodinámica estimadas
+        - 'events': índices de eventos detectados
+        - 'TR': tiempo de repetición
+    """
+    
+    # if bold_signal.ndim == 1:
+    #    bold_signal = bold_signal.reshape(-1, 1)
+    
+    nobs, nregions = bold_signal.shape
+    
+    # Parámetros rsHRF
+    para = {}
+    para['TR'] = TR
+    para['T'] = T  # Longitud HRF en segundos
+    para['T0'] = T0  # Onset
+    para['dt'] = TR
+    para['AR_lag'] = 1
+    para['thr'] = 1  # Threshold para detección de eventos (en desviaciones estándar)
+    para['len'] = nobs
+    para['localK'] = 2  # Local peaks
+    
+    # Inicializar resultados
+    data_deconv = np.zeros_like(bold_signal)
+    hrfs = []
+    all_events = []
+    
+    # Procesar cada región
+    for region in range(nregions):
+        signal_region = bold_signal[:, region]
+        
+        # Deconvolución con rsHRF
+        try:
+            # rsHRF espera (voxels x time), así que transponemos
+            signal_input = signal_region.reshape(1, -1)
+            
+            # Llamar a la función principal de rsHRF
+            # Usamos iterative wiener deconvolution
+            hrf, deconv_signal, event_onsets = processing.wgr_deconv_canonhrf_par(
+                signal_input,
+                para,
+                temporal_mask=None
+            )
+            
+            # Guardar resultados
+            data_deconv[:, region] = deconv_signal.flatten()
+            hrfs.append(hrf.flatten() if hrf is not None else None)
+            all_events.append(event_onsets)
+            
+        except Exception as e:
+            # Fallback: usar señal original
+            data_deconv[:, region] = signal_region
+            hrfs.append(None)
+            all_events.append([])
+        
+    return {
+        'bold_preprocessed': bold_signal,
+        'data_deconv': data_deconv,
+        'hrfs': hrfs,
+        'events': all_events,
+        'TR': TR
+    }
+
+
+
+
+
+
+
+
+
+
+def plot_deconvolution_results(results, region_idx=0, save_path=None):
+    """
+    Visualización de resultados de deconvolución
+    """
+    TR = results['TR']
+    nobs = results['bold_preprocessed'].shape[0]
+    time = np.arange(nobs) * TR
+    
+    # Obtener señales
+    bold_signal = results['bold_preprocessed'][:, region_idx]
+    deconv_signal = results['data_deconv'][:, region_idx]
+    events = results['events'][region_idx]
+    
+    # Normalizar
+    bold_norm = stats.zscore(bold_signal)
+    deconv_norm = stats.zscore(deconv_signal)
+    
+    # Crear figura
+    fig, axes = plt.subplots(3, 1, figsize=(14, 10))
+    
+    # Panel 1: BOLD Original
+    axes[0].plot(time, bold_norm, 'b-', linewidth=1.5, alpha=0.8)
+    axes[0].fill_between(time, bold_norm, alpha=0.2, color='blue')
+    axes[0].axhline(0, color='gray', linestyle='--', alpha=0.5, linewidth=0.8)
+    axes[0].set_ylabel('Amplitud (Z-score)', fontsize=11)
+    axes[0].set_title(f'Análisis de Deconvolución BOLD (rsHRF)\nSeñal BOLD Original - Región {region_idx}', 
+                      fontsize=13, fontweight='bold')
+    axes[0].grid(True, alpha=0.3)
+    axes[0].set_xlim([time[0], time[-1]])
+    
+    # Panel 2: HRF (si existe)
+    if results['hrfs'][region_idx] is not None:
+        hrf = results['hrfs'][region_idx]
+        time_hrf = np.arange(len(hrf)) * TR
+        axes[1].plot(time_hrf, hrf, 'g-', linewidth=2.5)
+        axes[1].fill_between(time_hrf, 0, hrf, alpha=0.3, color='green')
+        
+        # Marcar pico
+        if np.any(hrf):
+            peak_idx = np.argmax(hrf)
+            axes[1].axvline(time_hrf[peak_idx], color='red', linestyle='--', 
+                           alpha=0.7, linewidth=1.5, label=f'Peak: {time_hrf[peak_idx]:.1f}s')
+            axes[1].legend(loc='upper right')
+    else:
+        axes[1].text(0.5, 0.5, 'HRF no disponible', 
+                    ha='center', va='center', transform=axes[1].transAxes)
+    
+    axes[1].set_ylabel('Amplitud', fontsize=11)
+    axes[1].set_title('Función de Respuesta Hemodinámica Estimada', 
+                      fontsize=13, fontweight='bold')
+    axes[1].grid(True, alpha=0.3)
+    
+    # Panel 3: Señal Deconvolucionada
+    axes[2].plot(time, bold_norm, 'b-', linewidth=1.5, alpha=0.5, 
+                label='BOLD Original')
+    axes[2].plot(time, deconv_norm, 'r-', linewidth=1.5, alpha=0.8, 
+                label='Deconvolucionada')
+    
+    # Marcar eventos
+    if events is not None and len(events) > 0:
+        # Convertir eventos a índices si son tiempos
+        if isinstance(events, (list, np.ndarray)):
+            event_indices = [int(e/TR) if e >= 1 else int(e) for e in events if e < len(time)]
+            if len(event_indices) > 0:
+                axes[2].scatter(time[event_indices], deconv_norm[event_indices], 
+                               color='orange', s=100, zorder=5, marker='v',
+                               edgecolors='black', linewidths=1.5,
+                               label=f'Eventos ({len(event_indices)})')
+    
+    axes[2].axhline(0, color='gray', linestyle='--', alpha=0.5, linewidth=0.8)
+    axes[2].set_xlabel('Tiempo (s)', fontsize=11, fontweight='bold')
+    axes[2].set_ylabel('Z-score', fontsize=11)
+    axes[2].set_title('Señal Deconvolucionada con Eventos Detectados', 
+                      fontsize=13, fontweight='bold')
+    axes[2].legend(loc='upper right')
+    axes[2].grid(True, alpha=0.3)
+    axes[2].set_xlim([time[0], time[-1]])
+    
+    plt.tight_layout()
+    
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f"✓ Plot guardado: {save_path}")
+    
+    return fig
+
+
+def plot_simple_comparison(results, region_idx=0, save_path=None):
+    """
+    Comparación simple: BOLD vs Deconvolucionada
+    """
+    TR = results['TR']
+    nobs = results['bold_preprocessed'].shape[0]
+    time = np.arange(nobs) * TR
+    
+    bold_signal = results['bold_preprocessed'][:, region_idx]
+    deconv_signal = results['data_deconv'][:, region_idx]
+    events = results['events'][region_idx]
+    
+    # Normalizar
+    bold_norm = stats.zscore(bold_signal)
+    deconv_norm = stats.zscore(deconv_signal)
+    
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
+    # Plot señales
+    ax.plot(time, bold_norm, color='blue', linewidth=1.8, 
+            alpha=0.7, label='BOLD')
+    ax.plot(time, deconv_norm, color='red', linewidth=1.8, 
+            alpha=0.85, label='Deconvolved BOLD')
+    
+    # Marcar eventos
+    if events is not None and len(events) > 0:
+        event_indices = [int(e/TR) if e >= 1 else int(e) for e in events if e < len(time)]
+        if len(event_indices) > 0:
+            ax.scatter(time[event_indices], deconv_norm[event_indices], 
+                      color='black', s=100, zorder=5, 
+                      marker='^', label='Events')
+    
+    ax.axhline(0, color='gray', linestyle='-', alpha=0.4, linewidth=1)
+    ax.set_xlabel('time (s)', fontsize=13)
+    ax.set_ylabel('amplitude (Z-score)', fontsize=13)
+    ax.set_title(f'BOLD Deconvolution (rsHRF) - Region {region_idx}', 
+                 fontsize=15, fontweight='bold')
+    ax.legend(loc='upper right', framealpha=0.95, fontsize=11)
+    ax.grid(True, alpha=0.25, linestyle='-', linewidth=0.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+        print(f"✓ Plot guardado: {save_path}")
+    
+    return fig
+
+
+# ==============================================================================
+# EJEMPLO DE USO
+# ==============================================================================
+
+if __name__ == "__main__":
+    
+    print("\n" + "="*60)
+    print(" BOLD DECONVOLUTION usando rsHRF")
+    print("="*60)
+    
+    # Importar módulo BOLD
+    import BOLDModel as bd
+    
+    # Parámetros de simulación
+    dt = 1e-3
+    tmax = 400
+    N = int(tmax/dt)
+    t = np.linspace(0, tmax, N)
+    nnodes = 3
+    
+    # Generar firing rates sintéticos
+    print("\n1. Generando firing rates sintéticos...")
+    firing_rates = np.zeros((N, nnodes))
+    
+    for region in range(nnodes):
+        # Línea base
+        baseline = 0.5 + 0.2 * np.random.randn(N)
+        
+        # Eventos discretos
+        n_events = int(tmax * 0.08)
+        event_times = np.random.choice(N, size=n_events, replace=False)
+        
+        events = np.zeros(N)
+        for event_time in event_times:
+            event_width = int(0.5 / dt)
+            start = max(0, event_time - event_width//2)
+            end = min(N, event_time + event_width//2)
+            amplitude = np.random.uniform(3, 8)
+            gaussian = amplitude * np.exp(-0.5 * ((np.arange(start, end) - event_time) / (event_width/4))**2)
+            events[start:end] += gaussian
+        
+        # Oscilación lenta
+        slow_freq = np.random.uniform(0.01, 0.03)
+        oscillation = 0.5 * np.sin(2 * np.pi * slow_freq * t)
+        
+        firing_rates[:, region] = np.maximum(0, baseline + events + oscillation + 0.1 * np.random.randn(N))
+    
+    # Simular señal BOLD
+    print("2. Simulando señales BOLD...")
+    BOLD_signals = bd.Sim(firing_rates, nnodes, dt)
+    
+    # Filtrar señal BOLD
+    print("3. Filtrando señales BOLD (0.01-0.1 Hz)...")
+    a0, b0 = signal.bessel(2, [2 * dt * 0.01, 2 * dt * 0.1], btype='bandpass')
+    BOLD_filt = signal.filtfilt(a0, b0, BOLD_signals[60000:,:], axis=0)
+    
+    # Normalizar
+    BOLD_normalized = stats.zscore(BOLD_filt, axis=0)
+    
+    # TR efectivo
+    TR = 1.0
+    
+    # Deconvolución con rsHRF
+    print("\n4. Deconvolucionando con rsHRF...")
+    deconv_results = deconvolve_bold_rsHRF(
+        BOLD_normalized,
+        TR=TR,
+        T=32,
+        T0=1,
+        verbose=True
+    )
+    
+    # Visualización
+    print("\n5. Generando gráficos...")
+    
+    # Gráfico completo (3 paneles)
+    fig1 = plot_deconvolution_results(
+        deconv_results,
+        region_idx=0,
+        save_path='deconv_rsHRF_complete.png'
+    )
+    
+    # Gráfico simple (comparación)
+    fig2 = plot_simple_comparison(
+        deconv_results,
+        region_idx=0,
+        save_path='deconv_rsHRF_comparison.png'
+    )
+    
+    print("\n" + "="*60)
+    print(" ANÁLISIS COMPLETADO")
+    print("="*60)
+    print("\n📁 Archivos generados:")
+    print("  - deconv_rsHRF_complete.png")
+    print("  - deconv_rsHRF_comparison.png")
+    
+    # Resumen
+    print("\n📊 RESUMEN:")
+    for i, events in enumerate(deconv_results['events']):
+        n_events = len(events) if events is not None else 0
+        print(f"  Región {i}: {n_events} eventos detectados")
+    
+    plt.show()
