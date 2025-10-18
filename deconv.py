@@ -287,13 +287,161 @@ def deconvolve_bold_rsHRF(bold_signal, TR=1.0, T=32, T0=1):
     }
 
 
-deconvolved = deconvolve_bold_rsHRF(BOLD_signals, 1.5, 1, 2)
-print(deconvolved)
 
 
+def plot_deconvolution_results(results, region_idx=0, save_path=None):
+    """
+    Visualización de resultados de deconvolución
+    """
+    TR = results['TR']
+    nobs = results['bold_preprocessed'].shape[0]
+    time = np.arange(nobs) * TR
+    
+    # Obtener señales
+    bold_signal = results['bold_preprocessed'][:, region_idx]
+    deconv_signal = results['data_deconv'][:, region_idx]
+    
+    # Normalizar
+    bold_norm = stats.zscore(bold_signal)
+    deconv_norm = stats.zscore(deconv_signal)
+    
+    # Crear figura con 2 paneles (sin HRF ya que es None)
+    fig, axes = plt.subplots(2, 1, figsize=(14, 8))
+    
+    # Panel 1: BOLD Original
+    axes[0].plot(time, bold_norm, 'b-', linewidth=1.5, alpha=0.8)
+    axes[0].fill_between(time, bold_norm, alpha=0.2, color='blue')
+    axes[0].axhline(0, color='gray', linestyle='--', alpha=0.5, linewidth=0.8)
+    axes[0].set_ylabel('Amplitud (Z-score)', fontsize=11)
+    axes[0].set_title(f'Señal BOLD Original - Región {region_idx}', 
+                      fontsize=13, fontweight='bold')
+    axes[0].grid(True, alpha=0.3)
+    axes[0].set_xlim([time[0], time[-1]])
+    
+    # Panel 2: Comparación
+    axes[1].plot(time, bold_norm, 'b-', linewidth=1.5, alpha=0.5, 
+                label='BOLD Original')
+    axes[1].plot(time, deconv_norm, 'r-', linewidth=1.5, alpha=0.8, 
+                label='Deconvolucionada')
+    
+    axes[1].axhline(0, color='gray', linestyle='--', alpha=0.5, linewidth=0.8)
+    axes[1].set_xlabel('Tiempo (s)', fontsize=11, fontweight='bold')
+    axes[1].set_ylabel('Z-score', fontsize=11)
+    axes[1].set_title('Comparación de Señales', 
+                      fontsize=13, fontweight='bold')
+    axes[1].legend(loc='upper right')
+    axes[1].grid(True, alpha=0.3)
+    axes[1].set_xlim([time[0], time[-1]])
+    
+    plt.tight_layout()
+    
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+    
+    return fig
 
 
+def plot_simple_comparison(results, region_idx=0, save_path=None):
+    """
+    Comparación simple: BOLD vs Deconvolucionada
+    """
+    TR = results['TR']
+    nobs = results['bold_preprocessed'].shape[0]
+    time = np.arange(nobs) * TR
+    
+    bold_signal = results['bold_preprocessed'][:, region_idx]
+    deconv_signal = results['data_deconv'][:, region_idx]
+    
+    # Normalizar
+    bold_norm = stats.zscore(bold_signal)
+    deconv_norm = stats.zscore(deconv_signal)
+    
+    fig, ax = plt.subplots(figsize=(14, 6))
+    
+    ax.plot(time, bold_norm, color='blue', linewidth=1.8, 
+            alpha=0.7, label='BOLD')
+    ax.plot(time, deconv_norm, color='red', linewidth=1.8, 
+            alpha=0.85, label='Deconvolved BOLD')
+    
+    ax.axhline(0, color='gray', linestyle='-', alpha=0.4, linewidth=1)
+    ax.set_xlabel('time (s)', fontsize=13)
+    ax.set_ylabel('amplitude (Z-score)', fontsize=13)
+    ax.set_title(f'BOLD Comparison - Region {region_idx}', 
+                 fontsize=15, fontweight='bold')
+    ax.legend(loc='upper right', framealpha=0.95, fontsize=11)
+    ax.grid(True, alpha=0.25, linestyle='-', linewidth=0.5)
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    
+    plt.tight_layout()
+    
+    if save_path:
+        fig.savefig(save_path, dpi=150, bbox_inches='tight')
+    
+    return fig
 
 
+# ==============================================================================
+# EJEMPLO DE USO
+# ==============================================================================
 
+if __name__ == "__main__":
+    
+    import BOLDModel as bd
+    
+    # Parámetros
+    dt = 1e-3
+    tmax = 400
+    N = int(tmax/dt)
+    t = np.linspace(0, tmax, N)
+    nnodes = 3
+    
+    # Generar firing rates
+    firing_rates = np.zeros((N, nnodes))
+    
+    for region in range(nnodes):
+        baseline = 0.5 + 0.2 * np.random.randn(N)
+        n_events = int(tmax * 0.08)
+        event_times = np.random.choice(N, size=n_events, replace=False)
+        
+        events = np.zeros(N)
+        for event_time in event_times:
+            event_width = int(0.5 / dt)
+            start = max(0, event_time - event_width//2)
+            end = min(N, event_time + event_width//2)
+            amplitude = np.random.uniform(3, 8)
+            gaussian = amplitude * np.exp(-0.5 * ((np.arange(start, end) - event_time) / (event_width/4))**2)
+            events[start:end] += gaussian
+        
+        slow_freq = np.random.uniform(0.01, 0.03)
+        oscillation = 0.5 * np.sin(2 * np.pi * slow_freq * t)
+        
+        firing_rates[:, region] = np.maximum(0, baseline + events + oscillation + 0.1 * np.random.randn(N))
+    
+    # Simular BOLD
+    BOLD_signals = bd.Sim(firing_rates, nnodes, dt)
+    
+    # Filtrar
+    a0, b0 = signal.bessel(2, [2 * dt * 0.01, 2 * dt * 0.1], btype='bandpass')
+    BOLD_filt = signal.filtfilt(a0, b0, BOLD_signals[60000:,:], axis=0)
+    
+    # Normalizar
+    BOLD_normalized = stats.zscore(BOLD_filt, axis=0)
+    
+    # Deconvolución
+    TR = 1.0
+    deconv_results = deconvolve_bold_rsHRF(BOLD_normalized, TR=TR, T=32, T0=1)
+    
+    # Visualización
+    print("\nGenerando gráficos...")
+    
+    fig1 = plot_deconvolution_results(deconv_results, region_idx=0, 
+                                      save_path='deconv_results.png')
+    print("✓ deconv_results.png")
+    
+    fig2 = plot_simple_comparison(deconv_results, region_idx=0, 
+                                   save_path='deconv_comparison.png')
+    print("✓ deconv_comparison.png")
+    
+    plt.show()
 
