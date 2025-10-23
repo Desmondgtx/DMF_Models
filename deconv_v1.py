@@ -19,13 +19,7 @@ receptor maps explains non-linear functional effects of LSD." Current Biology
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy import signal, stats
-from numba import jit,float64
-from numba.core.errors import NumbaPerformanceWarning
-import warnings
-warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
-
-import rsHRF
+from scipy import signal
 
 #%% Parameters
 
@@ -71,7 +65,7 @@ def update():
     BOLD_signal.recompile()
 
 
-@jit(float64[:,:](float64[:,:],float64[:],float64), nopython = True)
+#@jit(float64[:,:](float64[:,:],float64[:],float64), nopython = True)
 def BOLD_response(y, rE, t):
     """
     This function generates a BOLD response using the firing rates rE.
@@ -109,7 +103,12 @@ def BOLD_response(y, rE, t):
     return(np.vstack((s_dot, f_dot, v_dot, q_dot)))
 
 
-@jit(float64[:,:](float64[:,:],float64[:,:]), nopython = True)    
+#
+
+
+
+
+#@jit(float64[:,:](float64[:,:],float64[:,:]), nopython = True)    
 def BOLD_signal(q, v):
     """
     This function returns the BOLD signal using deoxyhemoglobin content and

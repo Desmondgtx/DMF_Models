@@ -7,12 +7,15 @@ Created on Thu Aug  8 15:18:02 2019
 
 Generalized Hemodynamic Model to reproduce fMRI BOLD-like signals.
 
-[1] Stephan, K. E., Weiskopf, N., Drysdale, P. M., Robinson, P. A., & Friston, K. J. 
-(2007). Comparing hemodynamic models with DCM. Neuroimage, 38(3), 387-401.
+[1] Stephan, K. E., et al. "Comparing hemodynamic models with DCM." 
+Neuroimage, 38(3), (2007): 387-401.
 
 [2] Deco, Gustavo, et al. "Whole-brain multimodal neuroimaging model using serotonin 
 receptor maps explains non-linear functional effects of LSD." Current Biology 
-28.19 (2018): 3065-3074.
+28.19, (2018): 3065-3074.
+
+^ Wu, Guo-Rong, et al. "A blind deconvolution apporach to recover effective connectivity
+brain networks from resting state fMRI data" Medical Image Analysis, 17(3), (2018): 365–374.
 """
 
 #%% Libraries
@@ -20,12 +23,7 @@ receptor maps explains non-linear functional effects of LSD." Current Biology
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import signal
-from numba import jit,float64
-from numba.core.errors import NumbaPerformanceWarning
-import warnings
-warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
 
-import rsHRF
 
 #%% Parameters
 
@@ -49,14 +47,12 @@ E0 = 0.4        # resting oxygen extraction fraction
 TE = 0.04       # echo time (!!determined by the experiment)
 V0 = 0.04       # resting venous blood volume fraction
 
-
 # Inverse variables
 # itauX = inverse of tauX
 itaus = 1 / taus # Inverse of Kappa
 itauf = 1 / tauf # Inverse of Gamma
 itauo = 1 / tauo
 ialpha = 1 / alpha
-
 
 # Kinetics constants (Stephan et al. (2007) p. 391)
 k1 = 4.3 * nu * E0 * TE
@@ -144,7 +140,7 @@ def Sim(rE, nnodes, dt):
     y : Raw BOLD-like signals for each node (numpy array)
     """
     
-    # Don't know where the next equations come from 
+    # Don't know where this equations came from 
     
     Ntotal = rE.shape[0]
     
@@ -172,38 +168,6 @@ def ParamsBOLD():
 
 #%% Deconvolution Functions
 
-def _canonical_hrf(t, peak=4.0, undershoot=16.0):
-    """
-    Generate canonical HRF using difference of gamma functions.
-    
-    Parameters:
-    -----------
-    t : array
-        Time vector in seconds
-    peak : float
-        Time to peak (not used directly, implicit in parameters)
-    undershoot : float
-        Time to undershoot (not used directly, implicit in parameters)
-    
-    Returns:
-    --------
-    hrf : array
-        Normalized HRF values
-    """
-    # Parameters for double-gamma HRF
-    a1, a2 = 6, 12
-    b1, b2 = 0.9, 0.9
-    c = 0.35
-    
-    d1 = a1 * b1
-    d2 = a2 * b2
-    
-    hrf = (t / d1) ** a1 * np.exp(-(t - d1) / b1) - c * (t / d2) ** a2 * np.exp(-(t - d2) / b2)
-    hrf = hrf / np.max(hrf)  # Normalize
-    
-    return hrf
-
-
 def deconvolve_bold_rsHRF(bold_signal, TR=1.0, T=32, T0=1):
     """
     Deconvolución BOLD usando rsHRF
@@ -218,8 +182,6 @@ def deconvolve_bold_rsHRF(bold_signal, TR=1.0, T=32, T0=1):
         Longitud temporal de la HRF en segundos
     T0 : int
         Onset temporal de la HRF
-    verbose : bool
-        Imprimir información
         
     Returns:
     --------
@@ -263,6 +225,36 @@ def deconvolve_bold_rsHRF(bold_signal, TR=1.0, T=32, T0=1):
         'events': events,
         'TR': TR
     }
+
+def canon_hrf(t, peak=4.0, undershoot=16.0):
+    """
+    Generate canonical HRF using difference of gamma functions.
+    
+    Parameters:
+    -----------
+    t : array
+        Time vector in seconds
+    peak : float
+        Time to peak (not used directly, implicit in parameters)
+    undershoot : float
+        Time to undershoot (not used directly, implicit in parameters)
+    
+    Returns:
+    --------
+    hrf : array
+    """
+    # Parameters for double-gamma HRF
+    a1, a2 = 6, 12
+    b1, b2 = 0.9, 0.9
+    c = 0.35
+    
+    d1 = a1 * b1
+    d2 = a2 * b2
+    
+    hrf = (t / d1) ** a1 * np.exp(-(t - d1) / b1) - c * (t / d2) ** a2 * np.exp(-(t - d2) / b2)
+    hrf = hrf / np.max(hrf)  # Normalize
+    
+    return hrf
 
 
 #%% Main Execution
@@ -309,7 +301,6 @@ if __name__=="__main__":
     a0, b0 = signal.bessel(2, [2 * dt * 0.01, 2 * dt * 0.1], btype = 'bandpass')
     BOLD_filt = signal.filtfilt(a0, b0, BOLD_signals[60000:,:], axis = 0)
     
-    
     plt.figure(2)
     plt.clf()
     plt.plot(BOLD_filt)
@@ -319,23 +310,49 @@ if __name__=="__main__":
     plt.figure(3)
     plt.clf()
     hrf_time = np.linspace(0, 32, 1000)
-    hrf = _canonical_hrf(hrf_time)
+    hrf = canon_hrf(hrf_time)
+    peak_idx = np.argmax(hrf)
     
     plt.plot(hrf_time, hrf, 'g-', linewidth=2.5)
     plt.fill_between(hrf_time, hrf, alpha=0.3, color='green')
-    peak_idx = np.argmax(hrf)
-    plt.axvline(hrf_time[peak_idx], color='red', linestyle='--', 
-                linewidth=1.5, label=f'Peak: {hrf_time[peak_idx]:.1f}s')
-    plt.axhline(0, color='gray', linestyle='-', alpha=0.3, linewidth=0.8)
-    plt.xlabel('time (s)', fontsize=11, fontweight='bold')
-    plt.ylabel('amplitude', fontsize=11)
-    plt.title('Hemodynamic Response Function (canonical)', 
-              fontsize=13, fontweight='bold')
+    plt.axvline(hrf_time[peak_idx], color='red', label=f'Peak: {hrf_time[peak_idx]:.1f}s')
+    plt.xlabel('time (s)')
+    plt.ylabel('amplitude')
+    plt.title('Hemodynamic Response Function (canonical)')
     plt.legend(loc='upper right')
-    plt.grid(True, alpha=0.3)
     plt.tight_layout()
     plt.show()
     
     # Deconvolution
-    deconvolved = deconvolve_bold_rsHRF(BOLD_filt, TR=1.0, T=32, T0=1)
-    print(deconvolved)
+    deconvolved = deconvolve_bold_rsHRF(BOLD_signals, TR=1.0, T=32, T0=1)
+    data_deconv = deconvolved["data_deconv"]
+
+
+#%% Bold Impulse
+
+nnodes = 1
+dt = 0.01
+tstop = 50
+time=np.arange(0,tstop,dt)
+
+x_t = np.zeros_like(time)
+x_t[time==30]=20
+
+BOLD = Sim(x_t[:,None], nnodes, dt) # Sim(re, nnodes, dt)
+
+deconvolved = deconvolve_bold_rsHRF(BOLD, TR=1.0, T=32, T0=1)
+deconvolved_signal = deconvolved["data_deconv"]
+
+
+plt.clf()
+ax1 = plt.subplot(111)
+ax1.plot(time,deconvolved_signal)
+
+ax2 = ax1.twinx()
+ax2.plot(time,x_t, 'g')
+ax2.set_ylim((-10,250))
+ax1.set_ylim((-0.0005,0.0025))
+plt.xlabel("Tiempo (s)")
+ax1.set_ylabel("Señal BOLD", color='C0')
+
+plt.tight_layout()
