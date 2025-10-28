@@ -88,7 +88,7 @@ def BOLD_response(y, rE, t):
     (maybe replace E0 with "t" parameter idk)
     -------
     Returns:
-    Numpy array with s, f, v and q derivatives at time t.
+    Numpy array with s, f, v, q derivatives at time t.
     """
     
     s, f, v, q = y
@@ -122,7 +122,7 @@ def BOLD_signal(q, v):
     # Stephan et al., 2007 (p. 388) - BOLD signal change equation
     b_dot = V0 * (k1 * (1 - q) + k2 * (1 - q / v) + k3 * (1 - v))
     
-    return(b_dot)
+    return b_dot
 
 
 def Sim(rE, nnodes, dt):

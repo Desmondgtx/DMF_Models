@@ -87,17 +87,16 @@ def BOLD_response(y, rE, t):
     s, f, v, q = y
     
     # Stephan et al. (2007) Eq. (2-5), p. 388
-    # Signal compartment - Eq. (2)
-    s_dot = 1 * rE + 0 - itaus * s - itauf * (f - 1) 
-    
-    # Blood inflow - Eq. (3)
-    f_dot = s  
-    
-    # Blood volume - Eq. (4)
-    v_dot = (f - v ** ialpha) * itauo
-    
-    # Deoxyhemoglobin content - Eq. (5)
-    q_dot = (f * (1 - (1 - E0) ** (1 / f)) / E0 - q * v ** ialpha / v) * itauo
+    s_dot = 1 * rE + 0 - itaus * s - itauf * (f - 1) # Signal compartment - Eq. (2)
+    f_dot = s                                        # Blood inflow - Eq. (3)
+    v_dot = (f - v ** ialpha) * itauo                # Blood volume - Eq. (4)
+    q_dot = (f * (1 - (1 - E0) ** (1 / f)) / E0 - q * v ** ialpha / v) * itauo # Deoxyhemoglobin content - Eq. (5)
+
+    # Corrected according to the paper
+    # s_dot = 0.5 * rE + 3 - itaus * s - itauf * (f - 1)
+    # f_dot = s  
+    # v_dot = f - v ** (1 / ialpha) 
+    # q_dot = (f * ((1 - E0) ** (1 / f)) / E0 - q * v ** (1 / ialpha) / v) 
     
     return np.vstack((s_dot, f_dot, v_dot, q_dot))
 
@@ -154,8 +153,7 @@ def Sim(rE, nnodes, dt):
     
     # Euler method integration
     for i in range(1, Ntotal):
-        BOLD_vars[i, :, :] = BOLD_vars[i - 1, :, :] + dt * BOLD_response(
-            BOLD_vars[i - 1, :, :], rE[i - 1, :], i - 1)
+        BOLD_vars[i, :, :] = BOLD_vars[i - 1, :, :] + dt * BOLD_response(BOLD_vars[i - 1, :, :], rE[i - 1, :], i - 1)
     
     # Extract BOLD signal from deoxyhemoglobin content (q) and blood volume (v)
     y = BOLD_signal(BOLD_vars[:, 3, :], BOLD_vars[:, 2, :])
