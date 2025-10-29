@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Oct 22 22:43:17 2025
+Created on Wed Oct 22 2025
 
 @author: Diego Garrido
 
@@ -167,7 +167,7 @@ def ParamsBOLD():
     return pardict
 
 
-#%% rsHRF Functions - Adapted from original library
+#%% rsHRF Functions 
 
 def wgr_BOLD_event_vector(N, matrix, thr, k, temporal_mask=[]):
     """
@@ -395,8 +395,7 @@ def estimate_hrf_from_resting(bold_signal, para, temporal_mask=[]):
     Integrates functions from rsHRF library with original naming.
     ----------
     Parameters:
-    bold_signal : numpy array (time_points,)
-        Observed BOLD signal
+    bold_signal : Observed BOLD signal (numpy array)
     para : dict
         Parameters dictionary with keys:
         'TR' - repetition time in seconds
@@ -405,8 +404,7 @@ def estimate_hrf_from_resting(bold_signal, para, temporal_mask=[]):
         'thr' - threshold for event detection
         'dt' - time resolution for HRF (typically TR)
         'T' - microtime resolution (fMRI_T)
-    temporal_mask : list or numpy array, optional
-        Binary mask for valid time points (default: [])
+    temporal_mask : Binary mask for valid time points (default: []) (numpy array)
     ----------
     Returns:
     dict
@@ -476,50 +474,43 @@ def estimate_hrf_from_resting(bold_signal, para, temporal_mask=[]):
 
 #%% Visualization Functions
 
-def plot_hrf_and_deconvolution(results, title="rsHRF BOLD Deconvolution"):
+def plot_hrf_and_deconvolution(results):
     """
     Visualizes HRF and deconvolution results in separate figures.
     Inspired by plotting in fourD_rsHRF.py lines 119-132
     ----------
     Parameters:
-    results : dict
-        Dictionary returned by estimate_hrf_from_resting()
-    title : str, optional
-        Title prefix for plots (default: "rsHRF BOLD Deconvolution")
+    results : Dictionary returned by estimate_hrf_from_resting() (dict)
     ----------
     Returns:
-    tuple of matplotlib.figure.Figure
-        (fig_hrf, fig_bold) - two separate figure objects
+    fig_hrf, fig_bold
     
-    Reference: fourD_rsHRF.py lines 119-132
+    Reference: fourD_rsHRF.py lines 180 - 200
     """
     para = results['para']
     TR = para['TR']
     nobs = len(results['bold_original'])
     time = np.arange(nobs) * TR
     
+    
     # Figure 1: HRF (similar to fourD_rsHRF.py line 120-124)
     fig_hrf = plt.figure(figsize=(10, 5))
     plt.plot(results['hrf_time'], results['hrf'], 'g-', linewidth=2.5)
     plt.fill_between(results['hrf_time'], results['hrf'], alpha=0.3, color='green')
     peak_idx = np.argmax(results['hrf'])
-    plt.axvline(results['hrf_time'][peak_idx], color='red', linestyle='--',
-                label=f'Peak: {results["hrf_time"][peak_idx]:.1f}s')
+    plt.axvline(results['hrf_time'][peak_idx], color='red', linestyle='--',label=f'Peak: {results["hrf_time"][peak_idx]:.1f}s')
     plt.xlabel('Time (s)', fontsize=12)
     plt.ylabel('Amplitude', fontsize=12)
     plt.title('Hemodynamic Response Function (Canonical)', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=10)
+    plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
     # Figure 2: BOLD signals comparison (similar to fourD_rsHRF.py line 125-132)
     fig_bold = plt.figure(figsize=(12, 6))
     
-    # Plot BOLD and deconvolved signals
-    plt.plot(time, results['bold_normalized'], 'b-', linewidth=1, 
-             label='BOLD (normalized)', alpha=0.7)
-    plt.plot(time, stats.zscore(results['deconvolved'], ddof=1), 'r-', linewidth=1, 
-             label='Deconvolved', alpha=0.7)
+    plt.plot(time, results['bold_normalized'], 'b-', linewidth=1, label='BOLD (normalized)', alpha=0.7) # HRF of BOLD signal
+    plt.plot(time, stats.zscore(results['deconvolved'], ddof=1), 'r-', linewidth=1, label='Deconvolved', alpha=0.7) # HRF of deconvolved signal
     
     # Add detected events as stem plot (from fourD_rsHRF.py line 129-132)
     if len(results['events']) > 0:
@@ -531,10 +522,10 @@ def plot_hrf_and_deconvolution(results, title="rsHRF BOLD Deconvolution"):
         plt.setp(stemlines, linewidth=1)
         plt.setp(markerline, markersize=3)
     
-    plt.xlabel('Time (s)', fontsize=12)
-    plt.ylabel('Amplitude (normalized)', fontsize=12)
-    plt.title('BOLD Signal vs Deconvolved Signal', fontsize=14, fontweight='bold')
-    plt.legend(fontsize=10)
+    plt.xlabel('Time (s)')
+    plt.ylabel('Amplitude (normalized)')
+    plt.title('BOLD Signal vs Deconvolved Signal', fontsize=14)
+    plt.legend()
     plt.grid(True, alpha=0.3)
     plt.tight_layout()
     
@@ -548,22 +539,17 @@ def plot_impulse_response_rsHRF(impulse_time=35, tstop=50, dt=0.01, impulse_ampl
     Uses rsHRF naming conventions.
     ----------
     Parameters:
-    impulse_time : float, optional
-        Time at which impulse occurs in seconds (default: 35)
-    tstop : float, optional
-        Total simulation time in seconds (default: 50)
-    dt : float, optional
-        Integration time step in seconds (default: 0.01)
-    impulse_amplitude : float, optional
-        Amplitude of the impulse (default: 20)
-    para : dict, optional
-        Parameters for HRF estimation (if None, defaults are used)
+    impulse_time : Time at which impulse occurs in seconds (float)
+    tstop : Total simulation time in seconds (float)
+    dt : Integration time step in seconds (float)
+    impulse_amplitude : Amplitude of the impulse (float)
+    para : Parameters for HRF estimation (dict)
     ----------
     Returns:
     Figure object with impulse response plots
     
-    Similar to boldImpulse.py - impulse response analysis
     """
+    
     # Generate time vector and impulse stimulus
     time = np.arange(0, tstop, dt)
     x_t = np.zeros_like(time)
@@ -599,8 +585,7 @@ def plot_impulse_response_rsHRF(impulse_time=35, tstop=50, dt=0.01, impulse_ampl
     
     # Plot BOLD signals
     ax1.plot(time, BOLD, 'b-', linewidth=2, label='BOLD Response', alpha=0.8)
-    ax1.plot(time_downsampled, results['deconvolved'], 'r-', linewidth=2, 
-             label='Deconvolved Signal', alpha=0.8)
+    ax1.plot(time_downsampled, results['deconvolved'], 'r-', linewidth=2, label='Deconvolved Signal', alpha=0.8)
     ax1.set_xlabel("Time (s)", fontsize=12)
     ax1.set_ylabel("BOLD Signal", color='b', fontsize=12)
     ax1.tick_params(axis='y', labelcolor='b')
@@ -640,11 +625,9 @@ if __name__ == "__main__":
     y = np.vstack((y1, y2, y3)).T
     
     # Simulate BOLD signals using hemodynamic model
-    print("Simulating BOLD signals...")
     BOLD_signals = Sim(y, 3, dt)
     
     # Filter BOLD signals (bandpass 0.01-0.1 Hz)
-    print("Filtering BOLD signals...")
     a0, b0 = signal.bessel(2, [2 * dt * 0.01, 2 * dt * 0.1], btype='bandpass')
     BOLD_filt = signal.filtfilt(a0, b0, BOLD_signals[60000:, :], axis=0)
     
@@ -666,11 +649,9 @@ if __name__ == "__main__":
     }
     
     # Deconvolve BOLD signal using rsHRF naming
-    print("Performing deconvolution with rsHRF functions...")
     results = estimate_hrf_from_resting(BOLD_downsampled, para)
     
     # Recover HRF from original BOLD signal (without deconvolution)
-    print("Recovering HRF from original BOLD signal...")
     results_original = estimate_hrf_from_resting(BOLD_downsampled, para)
     
     # Plot HRF from original signal
@@ -678,8 +659,7 @@ if __name__ == "__main__":
     plt.plot(results_original['hrf_time'], results_original['hrf'], 'b-', linewidth=2.5)
     plt.fill_between(results_original['hrf_time'], results_original['hrf'], alpha=0.3, color='blue')
     peak_idx_orig = np.argmax(results_original['hrf'])
-    plt.axvline(results_original['hrf_time'][peak_idx_orig], color='red', linestyle='--',
-                label=f'Peak: {results_original["hrf_time"][peak_idx_orig]:.1f}s')
+    plt.axvline(results_original['hrf_time'][peak_idx_orig], color='red', linestyle='--', label=f'Peak: {results_original["hrf_time"][peak_idx_orig]:.1f}s')
     plt.xlabel('Time (s)', fontsize=12)
     plt.ylabel('Amplitude', fontsize=12)
     plt.title('HRF from Original BOLD Signal', fontsize=14, fontweight='bold')
@@ -689,12 +669,9 @@ if __name__ == "__main__":
     plt.show()
     
     # Plot comparison of both HRFs
-    print("Comparing HRFs from original and deconvolved signals...")
     fig_comparison = plt.figure(figsize=(12, 6))
-    plt.plot(results_original['hrf_time'], results_original['hrf'], 'b-', linewidth=2.5, 
-             label='HRF from Original BOLD', alpha=0.8)
-    plt.plot(results['hrf_time'], results['hrf'], 'g-', linewidth=2.5, 
-             label='HRF from Deconvolved', alpha=0.8)
+    plt.plot(results_original['hrf_time'], results_original['hrf'], 'b-', linewidth=2.5, label='HRF from Original BOLD', alpha=0.8)
+    plt.plot(results['hrf_time'], results['hrf'], 'g-', linewidth=2.5, label='HRF from Deconvolved', alpha=0.8)
     
     # Mark peaks for both HRFs
     peak_idx_orig = np.argmax(results_original['hrf'])
@@ -713,22 +690,17 @@ if __name__ == "__main__":
     plt.show()
     
     # Plot results in separate figures
-    print("Generating plots...")
-    fig_hrf, fig_bold = plot_hrf_and_deconvolution(results, title="rsHRF BOLD Deconvolution")
+    fig_hrf, fig_bold = plot_hrf_and_deconvolution(results)
     plt.show()
     
     # Print HRF parameters
-    print("\n" + "="*50)
-    print("HRF Parameters (from wgr_get_parameters):")
-    print("="*50)
-    print(f"  Height: {results['hrf_params']['height']:.4f}")
+    print("HRF Parameters (wgr_get_parameters):")
+    print(f"\n  Height: {results['hrf_params']['height']:.4f}")
     print(f"  Time to Peak: {results['hrf_params']['time_to_peak']:.2f} s")
     print(f"  FWHM: {results['hrf_params']['fwhm']:.2f} s")
     print(f"  Number of events detected: {len(results['events'])}")
-    print("="*50)
     
     # Example: Plot impulse response using rsHRF functions
-    print("\nGenerating impulse response plot with rsHRF naming...")
     para_impulse = {
         'TR': 1.0,
         'len': 32,
@@ -737,8 +709,6 @@ if __name__ == "__main__":
         'dt': 1.0,
         'T': 16
     }
-    fig_impulse = plot_impulse_response_rsHRF(impulse_time=35, tstop=50, dt=0.01, 
-                                               impulse_amplitude=20, para=para_impulse)
+    fig_impulse = plot_impulse_response_rsHRF(impulse_time=35, tstop=50, dt=0.01, impulse_amplitude=20, para=para_impulse)
     plt.show()
     
-    print("\nAll plots generated successfully using rsHRF naming conventions!")
