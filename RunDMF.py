@@ -16,7 +16,7 @@ from scipy.io import savemat
 import DMF as DMF
 import matplotlib.pyplot as plt
 from anarpy.utils.FCDutil import fcd
-import BOLDModel as bd
+import comparacion as bd
 import time
 
 
