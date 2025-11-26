@@ -219,6 +219,41 @@ def wgr_BOLD_event_vector(N, matrix, thr, k, temporal_mask=[]):
     
     return data
 
+def knee_pt(y, x=None):
+    """
+    Simplified knee point detection using second derivative.
+    More robust but less sophisticated than the original algorithm.
+    ----------
+    Parameters:
+    y : Error curve (numpy array)
+    x : Optional x-coordinates (numpy array)
+    ----------
+    Returns:
+    res_x : X value at knee point
+    idx_of_result : Index of knee point
+    """
+    if type(y) is not np.ndarray or len(y) < 3:
+        return (y[0] if len(y) > 0 else np.nan), 0
+    
+    if x is None:
+        x = np.arange(len(y))
+    
+    # Method 1: Find where second derivative is maximum (sharpest bend)
+    dy = np.diff(y)  # First derivative
+    ddy = np.diff(dy)  # Second derivative
+    
+    # Find the point with maximum curvature (absolute second derivative)
+    idx = np.argmax(np.abs(ddy)) + 1  # +1 porque diff reduce el tamaño
+    
+    # Method 2: Apply heuristic like original - if too close to min, use min
+    _idm = np.argmin(y)
+    ratio = np.abs(y[idx] - y[_idm]) / (np.abs(np.max(y) - np.min(y)) + 1e-10)
+    
+    if ratio > 0.5:
+        idx = _idm
+    
+    return x[idx], int(idx)
+
 
 
 def wgr_get_parameters(hdrf, dt):
@@ -389,10 +424,12 @@ def wgr_deconvolution(bold_signal, hrf, regularization=0.1):
 
 #%% Integrated Pipeline Functions
 
-def deconvolve_with_canonical_hrf(bold_signal, para, temporal_mask=[]):
+def deconvolve_with_canonical_hrf(bold_signal, para, temporal_mask=[], search_lag=False):
     """
     Main pipeline for BOLD signal deconvolution using rsHRF approach.
     Integrates functions from rsHRF library with original naming.
+    
+    NEW: Added optional lag optimization following Wu et al. (2013)
     ----------
     Parameters:
     bold_signal : Observed BOLD signal (numpy array)
@@ -405,6 +442,9 @@ def deconvolve_with_canonical_hrf(bold_signal, para, temporal_mask=[]):
         'dt' - time resolution for HRF (typically TR)
         'T' - microtime resolution (fMRI_T)
     temporal_mask : Binary mask for valid time points (default: []) (numpy array)
+    search_lag : bool
+        If True, searches for optimal lag (slower but more accurate)
+        If False, uses lag=0 (faster, original behavior)
     ----------
     Returns:
     dict
@@ -416,37 +456,71 @@ def deconvolve_with_canonical_hrf(bold_signal, para, temporal_mask=[]):
         - 'hrf_time': time vector for HRF
         - 'events': indices of detected events
         - 'hrf_params': dictionary with height, time_to_peak, fwhm
+        - 'optimal_lag': lag in TRs (NEW, only if search_lag=True)
+        - 'optimal_lag_seconds': lag in seconds (NEW, only if search_lag=True)
         - 'para': parameters used
     
-    Reference: Integrates multiple rsHRF functions
+    Reference: Wu et al. (2013) Section 2.1, Pseudo-code
     """
     
-    # Normalize BOLD signal (from fourD_rsHRF.py line 68)
+    # Normalize BOLD signal (Wu et al. 2013, Pseudo-code step i)
     bold_normalized = stats.zscore(bold_signal, ddof=1)
     bold_normalized = np.nan_to_num(bold_normalized)
     
-    # Detect spontaneous BOLD events (wgr_BOLD_event_vector)
+    # Detect spontaneous BOLD events (Wu et al. 2013, Pseudo-code step ii)
     N = len(bold_normalized)
     thr = [para['thr']] if isinstance(para['thr'], (int, float)) else para['thr']
     events = wgr_BOLD_event_vector(N, bold_normalized, thr, para['localK'], temporal_mask)
     event_indices = events.toarray().flatten('C').ravel().nonzero()[0]
     
-    # Generate canonical HRF using rsHRF naming
+    # Generate canonical HRF (Wu et al. 2013, Pseudo-code step iii)
     xBF = {
         'dt': para['dt'],
         'T': para.get('T', 16),
         'len': para['len'],
-        'TD_DD': 0  # No derivatives
+        'TD_DD': 0  # No derivatives for deconvolution
     }
     hrf_canonical = wgr_spm_get_canonhrf(xBF)
-    hrf_canonical = hrf_canonical[:, 0]  # Extract first column (canonical only)
+    hrf_canonical = hrf_canonical[:, 0]  # Extract first column
     
-    # Time vector for HRF - must match length of hrf_canonical
-    # spm_hrf generates int(len/TR) + 1 points
+    # === NEW: LAG OPTIMIZATION ===
+    optimal_lag = 0
+    optimal_lag_seconds = 0.0
+    
+    if search_lag and len(event_indices) > 0:
+        # Wu et al. (2013) Pseudo-code step (iii-iv): Test multiple lags
+        max_lag_tr = min(5, int(8.0 / para['TR']))  # Max 5 TRs or 8 seconds
+        lag_range = np.arange(0, max_lag_tr + 1)
+        
+        residual_errors = np.zeros(len(lag_range))
+        
+        for lag_idx, lag in enumerate(lag_range):
+            # Shift events by lag (Wu et al. 2013, Eq. 2 with time shift)
+            events_shifted = np.zeros(N)
+            valid_indices = event_indices[event_indices >= lag]
+            events_shifted[valid_indices - lag] = 1
+            
+            # Convolve shifted events with HRF
+            predicted_bold = np.convolve(events_shifted, hrf_canonical, mode='same')
+            
+            # Calculate residual error (Wu et al. 2013, Pseudo-code step iv)
+            residual_errors[lag_idx] = np.var(bold_normalized - predicted_bold)
+        
+        # Find optimal lag using knee point detection
+        _, optimal_lag_idx = knee_pt(residual_errors)
+        optimal_lag = lag_range[optimal_lag_idx]
+        optimal_lag_seconds = optimal_lag * para['TR']
+        
+        print(f"  Optimal lag found: {optimal_lag} TRs ({optimal_lag_seconds:.2f} s)")
+        print(f"  Residual errors: {residual_errors}")
+    
+    # === END LAG OPTIMIZATION ===
+    
+    # Time vector for HRF
     n_points = len(hrf_canonical)
     t_hrf = np.linspace(0, para['len'], n_points)
     
-    # Perform Wiener deconvolution
+    # Perform Wiener deconvolution (Wu et al. 2013, Eq. 4-5)
     deconvolved_signal = wgr_deconvolution(bold_signal, hrf_canonical)
     
     # Extract HRF parameters
@@ -467,6 +541,12 @@ def deconvolve_with_canonical_hrf(bold_signal, para, temporal_mask=[]):
         },
         'para': para
     }
+    
+    # Add lag info if search was performed
+    if search_lag:
+        results['optimal_lag'] = optimal_lag
+        results['optimal_lag_seconds'] = optimal_lag_seconds
+        results['residual_errors'] = residual_errors  # Para debugging
     
     return results
 
@@ -648,7 +728,7 @@ if __name__ == "__main__":
     }
     
     # Deconvolve BOLD signal using rsHRF naming
-    results = deconvolve_with_canonical_hrf(BOLD_downsampled, para)
+    results = deconvolve_with_canonical_hrf(BOLD_downsampled, para, search_lag=True)
     
     # Recover HRF from original BOLD signal (without deconvolution)
     results_original = deconvolve_with_canonical_hrf(results['deconvolved'], para)
@@ -711,4 +791,5 @@ if __name__ == "__main__":
     }
     fig_impulse = plot_impulse_response_rsHRF(impulse_time=35, tstop=50, dt=0.01, impulse_amplitude=20, para=para_impulse)
     plt.show()
-    
+    # -*- coding: utf-8 -*-
+
