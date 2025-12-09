@@ -362,7 +362,7 @@ if __name__ == "__main__":
     # Parámetros
     dt = 1E-3
     tmax = 800
-    TR = 1      
+    TR = 1   
     
     # Generar señal neural sintética
     t = np.linspace(0, tmax, int(tmax / dt))
@@ -434,7 +434,6 @@ if __name__ == "__main__":
     plt.savefig('respuesta_de_impulso.png', dpi=500)
     plt.show()
 
-
     
     #%% Comparación de respuesta de impulso y HRF estimada
     
@@ -478,4 +477,24 @@ if __name__ == "__main__":
         axes[idx].axis('off')
     
     plt.tight_layout()
+    plt.savefig('comparacion_estimaciones.png', dpi=500)
     plt.show()
+    
+    
+    #%% Importar datos empíricos
+    
+    import nibabel as nib
+
+    # Cargar datos
+    gii = nib.load('lh.Yeo2011_7Networks_N1000.gii')
+    bold_sig = gii.agg_data()
+    
+    # Deconvolución
+    TR = 1
+    para = get_default_para(TR, 'canon2dd')
+    results = rsHRF_estimate_HRF(bold_sig.T, para, n_jobs=1)
+    
+    plot_hrf(results)
+    plot_deconvolution(results)
+    plt.show()
+    
