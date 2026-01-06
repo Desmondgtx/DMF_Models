@@ -498,3 +498,21 @@ if __name__ == "__main__":
     plot_deconvolution(results)
     plt.show()
     
+    
+    
+    #%% Importar datos Vicente Medel
+    
+    # Cargar datos
+    bold_data = np.loadtxt('sub-01_bold.txt', delimiter='\t')
+    print(f"Datos: {bold_data.shape[0]} timepoints × {bold_data.shape[1]} ROIs")
+    
+    # Deconvolucionar
+    TR = 1
+    para = get_default_para(TR, 'canon2dd')
+    results = rsHRF_estimate_HRF(bold_data, para, n_jobs=1)
+    
+    # Visualizar
+    plot_hrf(results)
+    plt.show()
+        
+    
