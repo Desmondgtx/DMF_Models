@@ -203,7 +203,7 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
     
     
     # for time-series input(fourD_rsHRF.py línea 68)
-    bold_sig = np.nan_to_num(stats.zscore(bold_sig, ddof=1, axis=0))
+    # bold_sig = np.nan_to_num(stats.zscore(bold_sig, ddof=1, axis=0))
     
     # Filtro para deconvolución (fourD_rsHRF.py línea 80)
     bold_sig_deconv = processing.rest_filter.rest_IdealFilter(
@@ -290,19 +290,19 @@ def get_default_para(TR, estimation='canon2dd'):
     """
     para = {
         'TR': TR,
-        'T': 3,                    # Microtime resolution (bins per TR)
+        'T': 1,                    # Microtime resolution (bins per TR)
         'T0': 1,                   # Microtime onset (reference bin)
-        'AR_lag': 1,               # AR order for autocorrelation correction
+        'AR_lag': 0,               # AR order for autocorrelation correction
         'thr': 1.0,                # Threshold for event detection (in std)
-        'len': 24,                 # HRF length in seconds
+        'len': 32,                 # HRF length in seconds
         'min_onset_search': 4,     # Minimum lag to search (seconds)
         'max_onset_search': 8,     # Maximum lag to search (seconds)
         'estimation': estimation,
-        'passband': [0.01, 0.08],           # Bandpass for HRF estimation
+        'passband': [0.01, 0.1],           # Bandpass for HRF estimation
         'passband_deconvolve': [0.0, np.inf],  # Bandpass for deconvolution
         'TD_DD': 2,                # 0=canon only, 1=+temporal, 2=+dispersion
         'order': 3,                # Number of basis vectors (for gamma/fourier)
-        'localK': 1 if TR <= 2 else 2  # Window for local maxima detection
+        'localK': 2  # Window for local maxima detection
     }
     para['dt'] = TR / para['T']
     para['lag'] = np.arange(
@@ -364,137 +364,33 @@ if __name__ == "__main__":
     tmax = 800
     TR = 1   
     
-    # Generar señal neural sintética
-    t = np.linspace(0, tmax, int(tmax / dt))
     
-    # Oscilación modulada
-    # neural_signal = np.sin(np.pi * 8 * t)**2 * np.exp(-np.cos(np.pi * 0.05 * t)**2)
+    #%% Comparar con MATLAB
+    import scipy.io as sio
     
-    # Pulsos aleatorios
-    neural_signal = np.zeros_like(t)
-    pulse_times = np.random.choice(len(t), size=50, replace=False)
-    neural_signal[pulse_times] = 1
+    # Cargar datos y ejecutar Python
+    bold_data = np.loadtxt('sub-01_bold.txt', delimiter='\t')
+    para = get_default_para(TR=1, estimation='canon2dd')
+    results = rsHRF_estimate_HRF(bold_data, para, n_jobs=1)
     
-    # Simular BOLD
-    BOLD = Sim(neural_signal[:, None], 1, dt)
+    # Cargar MATLAB
+    mat = sio.loadmat('matlab_hrf_extracted_canon2dd.mat')
+    hrfa_matlab = mat['hrfa']
+    PARA_matlab = mat['PARA']
     
-    # Filtrar y submuestrear
-    a0, b0 = signal.bessel(2, [2 * dt * 0.01, 2 * dt * 0.1], btype='bandpass')
-    BOLD_filt = signal.filtfilt(a0, b0, BOLD[60000:, :], axis=0)
-    BOLD_ds = BOLD_filt[::int(TR / dt), 0]
+    # Comparar
+    hrfa_python = results['hrfa_TR']
+    PARA_python = results['PARA']
+    n_rois = hrfa_matlab.shape[1]
     
+    # Igualar longitudes
+    n_bins = min(hrfa_matlab.shape[0], hrfa_python.shape[0])
+    hrf_corrs = [np.corrcoef(hrfa_matlab[:n_bins, i], hrfa_python[:n_bins, i])[0,1] 
+                 for i in range(n_rois)]
     
-    # Estimar HRF
-    para = get_default_para(TR, 'canon2dd')
-    results = rsHRF_estimate_HRF(BOLD_ds, para, n_jobs=1)
-    
-    # Mostrar resultados
-    print("HRF Parameters:")
-    print(f"  Height:       {results['PARA'][0,0]:}")
-    print(f"  Time to Peak: {results['PARA'][1,0]:} s")
-    print(f"  FWHM:         {results['PARA'][2,0]:} s")
-    print(f"  Events:       {len(results['event_bold'][0])}")
-    
-    # Plots
-    plot_hrf(results)
-    plot_deconvolution(results)
-    plt.show()
-    
-    
-    
-    #%% Respuesta de impulso
-    
-    #Parameters
-    dt = 0.01
-    tstop = 60
-    time=np.arange(0,tstop,dt)
-
-    neural_signal = np.zeros_like(time)
-    neural_signal[time == 35] = 20  # Amplitud = 20
-    
-    # Simular BOLD
-    BOLD = Sim(neural_signal[:, None], 1, dt)
-
-    # Plots
-    plt.figure(3)
-    plt.clf()
-    ax1 = plt.subplot(111)
-    ax1.plot(time,BOLD, color='b', label='Respuesta de impulso')
-
-    ax2 = ax1.twinx()
-    ax2.plot(time,neural_signal, 'g', label='Estímulo')
-    ax2.set_ylim((-10,250))
-    ax1.set_ylim((-0.0005,0.0025))
-    ax1.set_xlabel('Tiempo (s)')
-    
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper left')
-
+    # Plot
+    plt.plot(hrfa_python[:, 0], 'b-', label='Python')
+    plt.plot(hrfa_matlab[:, 0], 'r--', label='MATLAB')
     plt.tight_layout()
-    plt.savefig('respuesta_de_impulso.png', dpi=500)
-    plt.show()
-
-    
-    #%% Comparación de respuesta de impulso y HRF estimada
-    
-    plt.figure(4)
-    plt.clf()
-    
-    ax1 = plt.subplot(111)
-    ax1.plot(time[time >= 35] - 35, BOLD[time >= 35, 0], 'b-', label='Respuesta de impulso')
-    ax2 = ax1.twinx()
-    ax2.plot(para['TR'] * np.arange(len(results['hrfa_TR'][:, 0])), results['hrfa_TR'][:, 0], 'r-', label='HRF estimada')
-    
-    ax1.set_xlabel('Tiempo (s)')
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1 + lines2, labels1 + labels2, loc='upper right')
-    
-    plt.tight_layout()
-    plt.savefig('comparacion_HRF.png', dpi=500)
-    plt.show()
-
-
-    #%% Comparar diferentes métodos de estimación
-    
-    methods = ['canon2dd', 'sFIR', 'FIR', 'gamma', 'fourier', 'hanning']
-    n_cols = 3
-    n_rows = int(np.ceil(len(methods) / n_cols))
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(15, 4 * n_rows))
-    axes = axes.flatten()
-    
-    for idx, method in enumerate(methods):
-        para = get_default_para(TR, method)
-        results = rsHRF_estimate_HRF(BOLD_ds, para, n_jobs=1)
-        
-        axes[idx].plot(para['TR'] * np.arange(1, results['hrfa_TR'].shape[0] + 1),
-                       results['hrfa_TR'][:, 0])
-        axes[idx].set_xlabel('time (s)')
-        axes[idx].set_title(method)
-    
-    # Ocultar ejes vacíos si sobran
-    for idx in range(len(methods), len(axes)):
-        axes[idx].axis('off')
-    
-    plt.tight_layout()
-    plt.savefig('comparacion_estimaciones.png', dpi=500)
     plt.show()
     
-    
-    #%% Importar datos empíricos
-    
-    import nibabel as nib
-
-    # Cargar datos
-    gii = nib.load('lh.Yeo2011_7Networks_N1000.gii')
-    bold_sig = gii.agg_data()
-    
-    # Deconvolución
-    TR = 1
-    para = get_default_para(TR, 'canon2dd')
-    results = rsHRF_estimate_HRF(bold_sig.T, para, n_jobs=1)
-    
-    plot_hrf(results)
-    plot_deconvolution(results)
-    plt.show()
