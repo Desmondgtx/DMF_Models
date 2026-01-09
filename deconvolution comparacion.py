@@ -365,32 +365,105 @@ if __name__ == "__main__":
     TR = 1   
     
     
-    #%% Comparar con MATLAB
+    # #%% Comparar con MATLAB
+    # import scipy.io as sio
+    
+    # # Cargar datos y ejecutar Python
+    # bold_data = np.loadtxt('sub-01_bold.txt', delimiter='\t')
+    # para = get_default_para(TR=1, estimation='canon2dd')
+    # results = rsHRF_estimate_HRF(bold_data, para, n_jobs=1)
+    
+    # # Cargar MATLAB
+    # mat = sio.loadmat('matlab_hrf_extracted_canon2dd.mat')    
+    # hrfa_matlab = mat['hrfa']
+    # PARA_matlab = mat['PARA']
+    
+    # # Comparar
+    # hrfa_python = results['hrfa_TR']
+    # PARA_python = results['PARA']
+    # n_rois = hrfa_matlab.shape[1]
+    
+    # # Igualar longitudes
+    # n_bins = min(hrfa_matlab.shape[0], hrfa_python.shape[0])
+    # hrf_corrs = [np.corrcoef(hrfa_matlab[:n_bins, i], hrfa_python[:n_bins, i])[0,1] 
+    #              for i in range(n_rois)]
+    
+    # # Plot
+    # plt.plot(hrfa_python[:, 0], 'b-', label='Python')
+    # plt.plot(hrfa_matlab[:, 0], 'r-', label='MATLAB')
+    # plt.tight_layout()
+    # plt.show()
+    
+    
+    
+    #%% Comparación MATLAB vs Python
+    
     import scipy.io as sio
     
-    # Cargar datos y ejecutar Python
-    bold_data = np.loadtxt('sub-01_bold.txt', delimiter='\t')
+    # HRF estimada desde MATLAB
+    subject_01 = sio.loadmat('Results/hrf_subject_01.mat')
+    subject_02 = sio.loadmat('Results/hrf_subject_02.mat')
+    subject_03 = sio.loadmat('Results/hrf_subject_03.mat')
+    subject_04 = sio.loadmat('Results/hrf_subject_04.mat')
+    subject_05 = sio.loadmat('Results/hrf_subject_05.mat')
+    
+    hrfa_s01 = subject_01['hrfa']
+    hrfa_s02 = subject_02['hrfa']
+    hrfa_s03 = subject_03['hrfa']
+    hrfa_s04 = subject_04['hrfa']
+    hrfa_s05 = subject_05['hrfa']
+    
+    # Realizar la deconvolución desde Python
+    s_01 = np.loadtxt('Subjects/sub-01_bold.txt', delimiter='\t')
+    s_02 = np.loadtxt('Subjects/sub-02_bold.txt', delimiter='\t')
+    s_03 = np.loadtxt('Subjects/sub-03_bold.txt', delimiter='\t')
+    s_04 = np.loadtxt('Subjects/sub-04_bold.txt', delimiter='\t')
+    s_05 = np.loadtxt('Subjects/sub-05_bold.txt', delimiter='\t')
+    
     para = get_default_para(TR=1, estimation='canon2dd')
-    results = rsHRF_estimate_HRF(bold_data, para, n_jobs=1)
     
-    # Cargar MATLAB
-    mat = sio.loadmat('matlab_hrf_extracted_canon2dd.mat')
-    hrfa_matlab = mat['hrfa']
-    PARA_matlab = mat['PARA']
+    results_01 = rsHRF_estimate_HRF(s_01, para, n_jobs=1)
+    results_02 = rsHRF_estimate_HRF(s_02, para, n_jobs=1)
+    results_03 = rsHRF_estimate_HRF(s_03, para, n_jobs=1)
+    results_04 = rsHRF_estimate_HRF(s_04, para, n_jobs=1)
+    results_05 = rsHRF_estimate_HRF(s_05, para, n_jobs=1)
     
-    # Comparar
-    hrfa_python = results['hrfa_TR']
-    PARA_python = results['PARA']
-    n_rois = hrfa_matlab.shape[1]
+    hrfa_python_01 = results_01['hrfa_TR']
+    hrfa_python_02 = results_02['hrfa_TR']
+    hrfa_python_03 = results_03['hrfa_TR']
+    hrfa_python_04 = results_04['hrfa_TR']
+    hrfa_python_05 = results_05['hrfa_TR']
     
-    # Igualar longitudes
-    n_bins = min(hrfa_matlab.shape[0], hrfa_python.shape[0])
-    hrf_corrs = [np.corrcoef(hrfa_matlab[:n_bins, i], hrfa_python[:n_bins, i])[0,1] 
-                 for i in range(n_rois)]
+    # Plots
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     
-    # Plot
-    plt.plot(hrfa_python[:, 0], 'b-', label='Python')
-    plt.plot(hrfa_matlab[:, 0], 'r--', label='MATLAB')
+    # MATLAB
+    axes[0].plot(hrfa_s01[:, 0], 'r-', label='Subject 01')
+    axes[0].plot(hrfa_s02[:, 0], 'b-', label='Subject 02')
+    axes[0].plot(hrfa_s03[:, 0], 'g-', label='Subject 03')
+    axes[0].plot(hrfa_s04[:, 0], 'c-', label='Subject 04')
+    axes[0].plot(hrfa_s05[:, 0], 'm-', label='Subject 05')
+    axes[0].set_xlabel('Time (bins)')
+    axes[0].set_ylabel('Amplitude')
+    axes[0].set_title('MATLAB')
+    axes[0].legend(loc='best')
+    axes[0].grid(True, alpha=0.3)
+    
+    # Python
+    axes[1].plot(hrfa_python_01[:, 0], 'r-', label='Subject 01')
+    axes[1].plot(hrfa_python_02[:, 0], 'b-', label='Subject 02')
+    axes[1].plot(hrfa_python_03[:, 0], 'g-', label='Subject 03')
+    axes[1].plot(hrfa_python_04[:, 0], 'c-', label='Subject 04')
+    axes[1].plot(hrfa_python_05[:, 0], 'm-', label='Subject 05')
+    axes[1].set_xlabel('Time (bins)')
+    axes[1].set_ylabel('Amplitude')
+    axes[1].set_title('Python')
+    axes[1].legend(loc='best')
+    axes[1].grid(True, alpha=0.3)
+    
+    fig.suptitle('HRF Estimation Comparison: MATLAB vs Python', fontsize=14, fontweight='bold')
     plt.tight_layout()
+    plt.savefig('comparacion_matlab_python.png', dpi=300, bbox_inches='tight')
     plt.show()
+    
     
