@@ -18,6 +18,11 @@ import numpy as np
 from scipy import signal, stats
 from scipy.sparse import lil_matrix
 
+from numba import jit,float64
+from numba.core.errors import NumbaPerformanceWarning
+import warnings
+warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
+
 # rsHRF
 # from rsHRF import spm_dep          # Funciones SPM (spm_hrf para HRF canónica)
 from rsHRF import processing       # rest_filter.rest_IdealFilter (filtrado bandpass)
@@ -28,7 +33,8 @@ from rsHRF import iterative_wiener_deconv  # Deconvolución Wiener iterativa
 
 # Import MATLAB and set backend
 import matplotlib.pyplot as plt
-plt.switch_backend('TkAgg')
+plt.switch_backend('QtAgg')
+
 
 #%% Parameters
 
@@ -71,6 +77,7 @@ def update():
     BOLD_response.recompile()
     BOLD_signal.recompile()
 
+@jit(float64[:,:](float64[:,:],float64[:],float64), nopython = True)
 def BOLD_response(y, rE, t):
     """
     This function generates a BOLD response using the firing rates rE.
@@ -109,6 +116,7 @@ def BOLD_response(y, rE, t):
     return(np.vstack((s_dot, f_dot, v_dot, q_dot)))
 
 
+@jit(float64[:,:](float64[:,:],float64[:,:]), nopython = True)    
 def BOLD_signal(q, v):
     """
     This function returns the BOLD signal using deoxyhemoglobin content and
@@ -396,74 +404,209 @@ if __name__ == "__main__":
     
     
     
-    #%% Comparación MATLAB vs Python
+    #%% HRF MATLAB
     
-    import scipy.io as sio
+    # import scipy.io as sio
     
-    # HRF estimada desde MATLAB
-    subject_01 = sio.loadmat('Results/hrf_subject_01.mat')
-    subject_02 = sio.loadmat('Results/hrf_subject_02.mat')
-    subject_03 = sio.loadmat('Results/hrf_subject_03.mat')
-    subject_04 = sio.loadmat('Results/hrf_subject_04.mat')
-    subject_05 = sio.loadmat('Results/hrf_subject_05.mat')
+    # # HRF estimada desde MATLAB
+    # subject_01 = sio.loadmat('Results/hrf_subject_01.mat')
+    # subject_02 = sio.loadmat('Results/hrf_subject_02.mat')
+    # subject_03 = sio.loadmat('Results/hrf_subject_03.mat')
+    # subject_04 = sio.loadmat('Results/hrf_subject_04.mat')
+    # subject_05 = sio.loadmat('Results/hrf_subject_05.mat')
     
-    hrfa_s01 = subject_01['hrfa']
-    hrfa_s02 = subject_02['hrfa']
-    hrfa_s03 = subject_03['hrfa']
-    hrfa_s04 = subject_04['hrfa']
-    hrfa_s05 = subject_05['hrfa']
+    # hrfa_s01 = subject_01['hrfa']
+    # hrfa_s02 = subject_02['hrfa']
+    # hrfa_s03 = subject_03['hrfa']
+    # hrfa_s04 = subject_04['hrfa']
+    # hrfa_s05 = subject_05['hrfa']
     
-    # Realizar la deconvolución desde Python
-    s_01 = np.loadtxt('Subjects/sub-01_bold.txt', delimiter='\t')
-    s_02 = np.loadtxt('Subjects/sub-02_bold.txt', delimiter='\t')
-    s_03 = np.loadtxt('Subjects/sub-03_bold.txt', delimiter='\t')
-    s_04 = np.loadtxt('Subjects/sub-04_bold.txt', delimiter='\t')
-    s_05 = np.loadtxt('Subjects/sub-05_bold.txt', delimiter='\t')
+    # # Plots
+    # fig, axes = plt.subplots(1, 2, figsize=(14, 5))
     
+    # # MATLAB
+    # axes[0].plot(hrfa_s01[:, 0], 'r-', label='Subject 01')
+    # axes[0].plot(hrfa_s02[:, 0], 'b-', label='Subject 02')
+    # axes[0].plot(hrfa_s03[:, 0], 'g-', label='Subject 03')
+    # axes[0].plot(hrfa_s04[:, 0], 'c-', label='Subject 04')
+    # axes[0].plot(hrfa_s05[:, 0], 'm-', label='Subject 05')
+    # axes[0].set_xlabel('Time (bins)')
+    # axes[0].set_ylabel('Amplitude')
+    # axes[0].set_title('MATLAB')
+    # axes[0].legend(loc='best')
+    # axes[0].grid(True, alpha=0.3)
+    
+    
+    #%% HRF Python
+    
+    # s_01 = np.loadtxt('Subjects/sub-01_bold_s01.txt', delimiter ='\t')
+    # s_02 = np.loadtxt('Subjects/sub-02_bold_s01.txt', delimiter ='\t')
+    # s_03 = np.loadtxt('Subjects/sub-03_bold_s01.txt', delimiter ='\t')
+    # s_04 = np.loadtxt('Subjects/sub-04_bold_s01.txt', delimiter ='\t')
+    # s_05 = np.loadtxt('Subjects/sub-05_bold_s01.txt', delimiter ='\t')
+    # s_06 = np.loadtxt('Subjects/sub-06_bold_s01.txt', delimiter ='\t')
+    # s_07 = np.loadtxt('Subjects/sub-07_bold_s01.txt', delimiter ='\t')
+    # s_08 = np.loadtxt('Subjects/sub-08_bold_s01.txt', delimiter ='\t')
+    # s_09 = np.loadtxt('Subjects/sub-09_bold_s01.txt', delimiter ='\t')
+    # s_10 = np.loadtxt('Subjects/sub-10_bold_s01.txt', delimiter ='\t')
+    # s_11 = np.loadtxt('Subjects/sub-11_bold_s01.txt', delimiter ='\t')
+    # s_12 = np.loadtxt('Subjects/sub-12_bold_s01.txt', delimiter ='\t')
+    # s_13 = np.loadtxt('Subjects/sub-13_bold_s01.txt', delimiter ='\t')
+    # s_14 = np.loadtxt('Subjects/sub-14_bold_s01.txt', delimiter ='\t')
+    # s_15 = np.loadtxt('Subjects/sub-15_bold_s01.txt', delimiter ='\t')
+    # s_16 = np.loadtxt('Subjects/sub-16_bold_s01.txt', delimiter ='\t')
+    # s_17 = np.loadtxt('Subjects/sub-17_bold_s01.txt', delimiter ='\t')
+    # s_18 = np.loadtxt('Subjects/sub-18_bold_s01.txt', delimiter ='\t')
+    # s_19 = np.loadtxt('Subjects/sub-19_bold_s01.txt', delimiter ='\t')
+    # s_20 = np.loadtxt('Subjects/sub-20_bold_s01.txt', delimiter ='\t')
+    # s_21 = np.loadtxt('Subjects/sub-21_bold_s01.txt', delimiter ='\t')
+    # s_22 = np.loadtxt('Subjects/sub-22_bold_s01.txt', delimiter ='\t')
+    
+    
+    # para = get_default_para(TR=1, estimation='canon2dd')
+    
+    
+    # results_01 = rsHRF_estimate_HRF(s_01, para, n_jobs = 1)
+    # results_02 = rsHRF_estimate_HRF(s_02, para, n_jobs = 1)
+    # results_03 = rsHRF_estimate_HRF(s_03, para, n_jobs = 1)
+    # results_04 = rsHRF_estimate_HRF(s_04, para, n_jobs = 1)
+    # results_05 = rsHRF_estimate_HRF(s_05, para, n_jobs = 1)
+    # results_06 = rsHRF_estimate_HRF(s_06, para, n_jobs = 1)
+    # results_07 = rsHRF_estimate_HRF(s_07, para, n_jobs = 1)
+    # results_08 = rsHRF_estimate_HRF(s_08, para, n_jobs = 1)
+    # results_09 = rsHRF_estimate_HRF(s_09, para, n_jobs = 1)
+    # results_10 = rsHRF_estimate_HRF(s_10, para, n_jobs = 1)
+    # results_11 = rsHRF_estimate_HRF(s_11, para, n_jobs = 1)
+    # results_12 = rsHRF_estimate_HRF(s_12, para, n_jobs = 1)
+    # results_13 = rsHRF_estimate_HRF(s_13, para, n_jobs = 1)
+    # results_14 = rsHRF_estimate_HRF(s_14, para, n_jobs = 1)
+    # results_15 = rsHRF_estimate_HRF(s_15, para, n_jobs = 1)
+    # results_16 = rsHRF_estimate_HRF(s_16, para, n_jobs = 1)
+    # results_17 = rsHRF_estimate_HRF(s_17, para, n_jobs = 1)
+    # results_18 = rsHRF_estimate_HRF(s_18, para, n_jobs = 1)
+    # results_19 = rsHRF_estimate_HRF(s_19, para, n_jobs = 1)
+    # results_20 = rsHRF_estimate_HRF(s_20, para, n_jobs = 1)
+    # results_21 = rsHRF_estimate_HRF(s_21, para, n_jobs = 1)
+    # results_22 = rsHRF_estimate_HRF(s_22, para, n_jobs = 1)
+    
+    
+    
+    # hrfa_python_01 = results_01['hrfa_TR']
+    # hrfa_python_02 = results_02['hrfa_TR']
+    # hrfa_python_03 = results_03['hrfa_TR']
+    # hrfa_python_04 = results_04['hrfa_TR']
+    # hrfa_python_05 = results_05['hrfa_TR']
+    # hrfa_python_06 = results_06['hrfa_TR']
+    # hrfa_python_07 = results_07['hrfa_TR']
+    # hrfa_python_08 = results_08['hrfa_TR']
+    # hrfa_python_09 = results_09['hrfa_TR']
+    # hrfa_python_10 = results_10['hrfa_TR']
+    # hrfa_python_11 = results_11['hrfa_TR']
+    # hrfa_python_12 = results_12['hrfa_TR']
+    # hrfa_python_13 = results_13['hrfa_TR']
+    # hrfa_python_14 = results_14['hrfa_TR']
+    # hrfa_python_15 = results_15['hrfa_TR']
+    # hrfa_python_16 = results_16['hrfa_TR']
+    # hrfa_python_17 = results_17['hrfa_TR']
+    # hrfa_python_18 = results_18['hrfa_TR']
+    # hrfa_python_19 = results_19['hrfa_TR']
+    # hrfa_python_20 = results_20['hrfa_TR']
+    # hrfa_python_21 = results_21['hrfa_TR']
+    # hrfa_python_22 = results_22['hrfa_TR']
+    
+    
+    # # Python
+    # # axes[1].plot(hrfa_python_01[:, 0], 'r-', label='Subject 01')
+    # # axes[1].plot(hrfa_python_02[:, 0], 'b-', label='Subject 02')
+    # # axes[1].plot(hrfa_python_03[:, 0], 'g-', label='Subject 03')
+    # # axes[1].plot(hrfa_python_04[:, 0], 'c-', label='Subject 04')
+    # # axes[1].plot(hrfa_python_05[:, 0], 'm-', label='Subject 05')
+    # # axes[1].plot(hrfa_python_06[:, 0], 'r-', label='Subject 06')
+    # # axes[1].plot(hrfa_python_07[:, 0], 'b-', label='Subject 07')
+    # # axes[1].plot(hrfa_python_08[:, 0], 'g-', label='Subject 08')
+    # # axes[1].plot(hrfa_python_09[:, 0], 'c-', label='Subject 09')
+    # # axes[1].plot(hrfa_python_10[:, 0], 'm-', label='Subject 10')
+    # # axes[1].plot(hrfa_python_11[:, 0], 'r-', label='Subject 11')
+    # # axes[1].plot(hrfa_python_12[:, 0], 'b-', label='Subject 12')
+    # # axes[1].plot(hrfa_python_13[:, 0], 'g-', label='Subject 13')
+    # # axes[1].plot(hrfa_python_14[:, 0], 'c-', label='Subject 14')
+    # # axes[1].plot(hrfa_python_15[:, 0], 'm-', label='Subject 15')
+    # # axes[1].plot(hrfa_python_16[:, 0], 'r-', label='Subject 16')
+    # # axes[1].plot(hrfa_python_17[:, 0], 'b-', label='Subject 17')
+    # # axes[1].plot(hrfa_python_18[:, 0], 'g-', label='Subject 18')
+    # # axes[1].plot(hrfa_python_19[:, 0], 'c-', label='Subject 19')
+    # # axes[1].plot(hrfa_python_20[:, 0], 'm-', label='Subject 20')
+    # # axes[1].plot(hrfa_python_21[:, 0], 'r-', label='Subject 21')
+    # # axes[1].plot(hrfa_python_22[:, 0], 'b-', label='Subject 22')
+    
+    
+    # plt.plot(hrfa_python_01[:, 0], 'r-', label='Subject 01')
+    # plt.plot(hrfa_python_02[:, 0], 'b-', label='Subject 02')
+    # plt.plot(hrfa_python_03[:, 0], 'g-', label='Subject 03')
+    # plt.plot(hrfa_python_04[:, 0], 'c-', label='Subject 04')
+    # plt.plot(hrfa_python_05[:, 0], 'm-', label='Subject 05')
+    # plt.plot(hrfa_python_06[:, 0], 'r-', label='Subject 06')
+    # plt.plot(hrfa_python_07[:, 0], 'b-', label='Subject 07')
+    # plt.plot(hrfa_python_08[:, 0], 'g-', label='Subject 08')
+    # plt.plot(hrfa_python_09[:, 0], 'c-', label='Subject 09')
+    # plt.plot(hrfa_python_10[:, 0], 'm-', label='Subject 10')
+    # plt.plot(hrfa_python_11[:, 0], 'r-', label='Subject 11')
+    # plt.plot(hrfa_python_12[:, 0], 'b-', label='Subject 12')
+    # plt.plot(hrfa_python_13[:, 0], 'g-', label='Subject 13')
+    # plt.plot(hrfa_python_14[:, 0], 'c-', label='Subject 14')
+    # plt.plot(hrfa_python_15[:, 0], 'm-', label='Subject 15')
+    # plt.plot(hrfa_python_16[:, 0], 'r-', label='Subject 16')
+    # plt.plot(hrfa_python_17[:, 0], 'b-', label='Subject 17')
+    # plt.plot(hrfa_python_18[:, 0], 'g-', label='Subject 18')
+    # plt.plot(hrfa_python_19[:, 0], 'c-', label='Subject 19')
+    # plt.plot(hrfa_python_20[:, 0], 'm-', label='Subject 20')
+    # plt.plot(hrfa_python_21[:, 0], 'r-', label='Subject 21')
+    # plt.plot(hrfa_python_22[:, 0], 'b-', label='Subject 22')
+    
+    # # plt.set_xlabel('Time (bins)')
+    # # plt.set_ylabel('Amplitude')
+    # # plt.set_title('Python')
+    # # plt.legend(loc='best')
+    # # plt.grid(True, alpha=0.3)
+    # # plt.suptitle('HRF Estimation Comparison: MATLAB vs Python', fontsize=14, fontweight='bold')
+    # # plt.tight_layout()
+    # # plt.savefig('python_subjects.png', dpi=500, bbox_inches='tight')
+    # # plt.show()
+    
+    # plt.xlabel('Time (bins)')
+    # plt.ylabel('Amplitude')
+    # plt.legend(loc='best')
+    # plt.grid(True, alpha=0.3)
+    # plt.tight_layout()  # Opcional pero recomendado
+    # plt.savefig('python_subjects.png', dpi=500, bbox_inches='tight')
+    
+
+    
+    
+    import glob
+    import os
+    
+    # Cargar, procesar y almacenar
     para = get_default_para(TR=1, estimation='canon2dd')
+    files = sorted(glob.glob('Subjects/sub-*_bold_s01.txt'))
+    results = {}
     
-    results_01 = rsHRF_estimate_HRF(s_01, para, n_jobs=1)
-    results_02 = rsHRF_estimate_HRF(s_02, para, n_jobs=1)
-    results_03 = rsHRF_estimate_HRF(s_03, para, n_jobs=1)
-    results_04 = rsHRF_estimate_HRF(s_04, para, n_jobs=1)
-    results_05 = rsHRF_estimate_HRF(s_05, para, n_jobs=1)
+    for filepath in files:
+        sub_id = os.path.basename(filepath).split('_')[0].replace('sub-', '')
+        bold_data = np.loadtxt(filepath, delimiter='\t')
+        results[sub_id] = rsHRF_estimate_HRF(bold_data, para, n_jobs=1)
     
-    hrfa_python_01 = results_01['hrfa_TR']
-    hrfa_python_02 = results_02['hrfa_TR']
-    hrfa_python_03 = results_03['hrfa_TR']
-    hrfa_python_04 = results_04['hrfa_TR']
-    hrfa_python_05 = results_05['hrfa_TR']
+    # Plot
+    plt.figure()
+    colors = plt.cm.tab20(np.linspace(0, 1, len(results)))
     
-    # Plots
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    for idx, (sub_id, res) in enumerate(sorted(results.items())):
+        plt.plot(res['hrfa_TR'][:, 0], color=colors[idx], label=f'Subject {sub_id}')
     
-    # MATLAB
-    axes[0].plot(hrfa_s01[:, 0], 'r-', label='Subject 01')
-    axes[0].plot(hrfa_s02[:, 0], 'b-', label='Subject 02')
-    axes[0].plot(hrfa_s03[:, 0], 'g-', label='Subject 03')
-    axes[0].plot(hrfa_s04[:, 0], 'c-', label='Subject 04')
-    axes[0].plot(hrfa_s05[:, 0], 'm-', label='Subject 05')
-    axes[0].set_xlabel('Time (bins)')
-    axes[0].set_ylabel('Amplitude')
-    axes[0].set_title('MATLAB')
-    axes[0].legend(loc='best')
-    axes[0].grid(True, alpha=0.3)
-    
-    # Python
-    axes[1].plot(hrfa_python_01[:, 0], 'r-', label='Subject 01')
-    axes[1].plot(hrfa_python_02[:, 0], 'b-', label='Subject 02')
-    axes[1].plot(hrfa_python_03[:, 0], 'g-', label='Subject 03')
-    axes[1].plot(hrfa_python_04[:, 0], 'c-', label='Subject 04')
-    axes[1].plot(hrfa_python_05[:, 0], 'm-', label='Subject 05')
-    axes[1].set_xlabel('Time (bins)')
-    axes[1].set_ylabel('Amplitude')
-    axes[1].set_title('Python')
-    axes[1].legend(loc='best')
-    axes[1].grid(True, alpha=0.3)
-    
-    fig.suptitle('HRF Estimation Comparison: MATLAB vs Python', fontsize=14, fontweight='bold')
+    plt.xlabel('Time (bins)')
+    plt.ylabel('Amplitude')
+    plt.legend(loc='best', ncol=2, fontsize=8)
+    plt.grid(True, alpha=0.3)
     plt.tight_layout()
-    plt.savefig('comparacion_matlab_python.png', dpi=300, bbox_inches='tight')
+    plt.savefig('python_subjects.png', dpi=500, bbox_inches='tight')
     plt.show()
-    
-    
