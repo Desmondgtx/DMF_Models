@@ -1,7 +1,7 @@
 #%% Libraries
 
 import numpy as np
-import deconvolution_comparacion as BD
+import BOLDModel as BD
 from scipy import signal
 from numba import jit,float64, vectorize,njit
 from numba.core.errors import NumbaPerformanceWarning
@@ -227,8 +227,6 @@ if __name__=="__main__":
     a0, b0 = signal.bessel(2, [2 * BOLD_dt * Fmin, 2 * BOLD_dt * Fmax], btype = 'bandpass')
     BOLD_filt = signal.filtfilt(a0, b0, BOLD_signals, axis = 0)        
     BOLD_filt = BOLD_filt[60:660,:]
-    
-    
   
     FC = np.corrcoef(BOLD_filt.T) #Functional Connectivity (FC) matrix
     mean_corr = np.mean(FC)
@@ -241,4 +239,6 @@ if __name__=="__main__":
     plt.figure(4)
     plt.clf()
     plt.plot(BOLD_filt); 
+
+
 

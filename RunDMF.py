@@ -16,8 +16,9 @@ from scipy.io import savemat
 import DMF as DMF
 import matplotlib.pyplot as plt
 from anarpy.utils.FCDutil import fcd
-import deconvolution_comparacion as bd
+import deconvolution_comparacion as BD
 import time
+
 
 
 #%%
@@ -90,10 +91,10 @@ f_r,psd_rates = signal.welch(rates[90000:-60000],fs=1000,axis=0,nperseg=5000)
 
 #%% Plots
 
-bd.itauf = 1 / 0.6
-bd.BOLD_response.recompile()
+BD.itauf = 1 / 0.6
+BD.BOLD_response.recompile()
 
-BOLD2 = bd.Sim(rates, DMF.nnodes, 0.001)
+BOLD2 = BD.Sim(rates, DMF.nnodes, 0.001)
 BOLD2 = BOLD2[int(120/0.001)::100]
 BOLD2_filt = signal.filtfilt(a0, b0, BOLD2, axis = 0)
 BOLD2_filt = BOLD2_filt[int(60/BOLD_dt):-int(60/BOLD_dt)]
@@ -109,7 +110,7 @@ FC2 = np.corrcoef(BOLD2_filt, rowvar=False)
 
 ii=(1,2,3,4, 11,12,13,14)
 
-plt.figure(1)
+plt.figure(3)
 plt.clf()
 plt.subplot2grid((2,6),(0,0),colspan=4)
 # plt.plot(BOLD_signals[:,::10])
@@ -151,9 +152,10 @@ plt.tight_layout()
 
 
 #%%
+
 t_rates = np.linspace(0,t[-1],rates.shape[0])
 
-plt.figure(2)
+plt.figure(4)
 plt.clf()
 
 # ax1 = plt.subplot(211)
@@ -195,9 +197,94 @@ print(f"eucilidiana {Eucl}")
 
 #%%
 
-plt.figure(4)
+plt.figure(5)
 plt.clf()
 plt.plot(BOLD_filt[:,::20])
 plt.plot(BOLD2_filt[:,::20],'--')
+
+
+
+# estimación HRF
+BOLD_filt_TR1 = BOLD_filt[::10, :]  # De TR=0.1 a TR=1
+BOLD_filt_TR2 = BOLD2_filt[::10, :]  # De TR=0.1 a TR=1
+
+
+para = BD.get_default_para(TR = 1, estimation='canon2dd')
+
+
+results_1 = BD.rsHRF_estimate_HRF(BOLD_filt_TR1, para)
+results_2 = BD.rsHRF_estimate_HRF(BOLD_filt_TR2, para)
+
+
+
+BD.plot_hrf(results_1)
+BD.plot_hrf(results_2)
+
+
+BD.plot_deconvolution(results_1)
+BD.plot_deconvolution(results_2)
+
+
+
+
+# Visualizar rates
+time_rates = np.arange(rates.shape[0]) * DMF.dt * DMF.downsampling_rates
+
+plt.figure()
+plt.plot(time_rates[:50000], rates[:50000, :5])  # Primeros 50s, 5 nodos
+plt.xlabel('Tiempo (s)')
+plt.ylabel('Firing Rate (Hz)')
+plt.title('Actividad neuronal simulada (rates)')
+plt.show()
+
+
+
+
+
+
+
+
+
+#%% Comparar HRF con diferentes parámetros DMF
+
+# --- Simulación 1: Parámetros originales ---
+DMF.G = 1.07
+DMF.sigma = 0.4
+DMF.update()
+BOLD_1, rates_1, t = DMF.Sim(verbose=True, return_rates=True)
+
+# --- Simulación 2: Parámetros variados ---
+DMF.G = 2.0
+DMF.sigma = 0.8
+DMF.update()
+BOLD_2, rates_2, t = DMF.Sim(verbose=True, return_rates=True)
+
+# --- Preprocesamiento ---
+BOLD_1 = BOLD_1[int(120/BOLD_dt):, :]
+BOLD_2 = BOLD_2[int(120/BOLD_dt):, :]
+
+BOLD_filt_1 = signal.filtfilt(a0, b0, BOLD_1, axis=0)
+BOLD_filt_2 = signal.filtfilt(a0, b0, BOLD_2, axis=0)
+
+BOLD_filt_1 = BOLD_filt_1[int(60/BOLD_dt):-int(60/BOLD_dt):10, :]  # TR=1
+BOLD_filt_2 = BOLD_filt_2[int(60/BOLD_dt):-int(60/BOLD_dt):10, :]
+
+# --- Estimación HRF ---
+para = BD.get_default_para(TR=1, estimation='canon2dd')
+results_1 = BD.rsHRF_estimate_HRF(BOLD_filt_1, para)
+results_2 = BD.rsHRF_estimate_HRF(BOLD_filt_2, para)
+
+# --- Plot ---
+plt.figure(figsize=(10, 6))
+time_hrf = para['TR'] * np.arange(1, results_1['hrfa_TR'].shape[0] + 1)
+plt.plot(time_hrf, results_1['hrfa_TR'][:, 0], 'b-', linewidth=2, label='G=1.07, σ=0.4')
+plt.plot(time_hrf, results_2['hrfa_TR'][:, 0], 'r-', linewidth=2, label='G=2.0, σ=0.8')
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+plt.title('HRF Estimation: Original vs Modified DMF parameters')
+plt.legend()
+plt.grid(True, alpha=0.3)
+plt.tight_layout()
+plt.show()
 
 

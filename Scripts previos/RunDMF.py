@@ -16,10 +16,8 @@ from scipy.io import savemat
 import DMF as DMF
 import matplotlib.pyplot as plt
 from anarpy.utils.FCDutil import fcd
-import BOLDModel as bd
+import deconvolution_comparacion as bd
 import time
-
-import deconvolution_comparacion as dc
 
 
 #%%
@@ -111,7 +109,7 @@ FC2 = np.corrcoef(BOLD2_filt, rowvar=False)
 
 ii=(1,2,3,4, 11,12,13,14)
 
-plt.figure(3)
+plt.figure(1)
 plt.clf()
 plt.subplot2grid((2,6),(0,0),colspan=4)
 # plt.plot(BOLD_signals[:,::10])
@@ -155,7 +153,7 @@ plt.tight_layout()
 #%%
 t_rates = np.linspace(0,t[-1],rates.shape[0])
 
-plt.figure(4)
+plt.figure(2)
 plt.clf()
 
 # ax1 = plt.subplot(211)
@@ -197,26 +195,9 @@ print(f"eucilidiana {Eucl}")
 
 #%%
 
-plt.figure(5)
+plt.figure(4)
 plt.clf()
 plt.plot(BOLD_filt[:,::20])
 plt.plot(BOLD2_filt[:,::20],'--')
 
-
-TR = 1
-para = dc.get_default_para(TR, 'canon2dd')
-
-results_1 = dc.rsHRF_estimate_HRF(BOLD_filt, para)
-results_2 = dc.rsHRF_estimate_HRF(BOLD2_filt, para)
-
-
-dc.plot_hrf(results_1)
-dc.plot_hrf(results_2)
-
-
-dc.plot_deconvolution(results_1)
-dc.plot_deconvolution(results_2)
-
-
-plt.show()
 

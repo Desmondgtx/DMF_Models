@@ -490,7 +490,6 @@ if __name__ == "__main__":
     # results_22 = rsHRF_estimate_HRF(s_22, para, n_jobs = 1)
     
     
-    
     # hrfa_python_01 = results_01['hrfa_TR']
     # hrfa_python_02 = results_02['hrfa_TR']
     # hrfa_python_03 = results_03['hrfa_TR']
@@ -563,6 +562,7 @@ if __name__ == "__main__":
     # plt.plot(hrfa_python_21[:, 0], 'r-', label='Subject 21')
     # plt.plot(hrfa_python_22[:, 0], 'b-', label='Subject 22')
     
+    
     # # plt.set_xlabel('Time (bins)')
     # # plt.set_ylabel('Amplitude')
     # # plt.set_title('Python')
@@ -573,6 +573,7 @@ if __name__ == "__main__":
     # # plt.savefig('python_subjects.png', dpi=500, bbox_inches='tight')
     # # plt.show()
     
+    
     # plt.xlabel('Time (bins)')
     # plt.ylabel('Amplitude')
     # plt.legend(loc='best')
@@ -581,8 +582,6 @@ if __name__ == "__main__":
     # plt.savefig('python_subjects.png', dpi=500, bbox_inches='tight')
     
 
-    
-    
     import glob
     import os
     
@@ -596,13 +595,19 @@ if __name__ == "__main__":
         bold_data = np.loadtxt(filepath, delimiter='\t')
         results[sub_id] = rsHRF_estimate_HRF(bold_data, para, n_jobs=1)
     
+    # Después del loop de procesamiento, antes del plot
+    for sub_id, res in sorted(results.items()):
+        peak = np.max(res['hrfa_TR'][:, 0])
+        print(f'Sub-{sub_id}: peak = {peak:.4f}')
+    
     # Plot
     plt.figure()
     colors = plt.cm.tab20(np.linspace(0, 1, len(results)))
     
     for idx, (sub_id, res) in enumerate(sorted(results.items())):
         plt.plot(res['hrfa_TR'][:, 0], color=colors[idx], label=f'Subject {sub_id}')
-    
+        
+        
     plt.xlabel('Time (bins)')
     plt.ylabel('Amplitude')
     plt.legend(loc='best', ncol=2, fontsize=8)
