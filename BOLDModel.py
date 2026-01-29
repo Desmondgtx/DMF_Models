@@ -182,25 +182,25 @@ if __name__=="__main__":
     y2 = np.sin(np.pi * 16 * t)**2 * np.exp(-delta * np.cos(np.pi * 0.05 * t)**2)
     y3 = np.sin(np.pi * 8 * t)**2 * np.exp(-delta * np.cos(np.pi * 0.05 * t + np.pi/2)**2)
     
-    ## Everything on the same plot
-    # plt.figure(1)
-    # plt.clf()
-    # plt.plot(y1)
-    # plt.plot(y2)
-    # plt.plot(y3)
+    # Everything on the same plot
+    plt.figure(1)
+    plt.clf()
+    plt.plot(y1)
+    plt.plot(y2)
+    plt.plot(y3)
     
-    ## Subplots
-    plt.subplot(3, 1, 1) # 2 rows, 1 column, first plot
-    plt.plot(y1, color='green')
-    plt.title("y1")
+    # ## Subplots
+    # plt.subplot(3, 1, 1) # 2 rows, 1 column, first plot
+    # plt.plot(y1, color='green')
+    # plt.title("y1")
 
-    plt.subplot(3, 1, 2) # 2 rows, 1 column, second plot
-    plt.plot(y2, color='orange')
-    plt.title("y2")
+    # plt.subplot(3, 1, 2) # 2 rows, 1 column, second plot
+    # plt.plot(y2, color='orange')
+    # plt.title("y2")
     
-    plt.subplot(3, 1, 3) # 2 rows, 1 column, second plot
-    plt.plot(y3, color='purple')
-    plt.title("y3")
+    # plt.subplot(3, 1, 3) # 2 rows, 1 column, second plot
+    # plt.plot(y3, color='purple')
+    # plt.title("y3")
 
     plt.tight_layout()
     plt.show()

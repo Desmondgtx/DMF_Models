@@ -19,8 +19,6 @@ from anarpy.utils.FCDutil import fcd
 import deconvolution_comparacion as BD
 import time
 
-
-
 #%%
 
 # import Regularity as Reg
@@ -43,6 +41,8 @@ DMF.SC = struct / np.mean(np.sum(struct,0))
 DMF.nnodes = len(DMF.SC)
 
 
+#%% BOLD 1
+
 # Model parameters
 DMF.G = 1.07        #Global coupling
 DMF.sigma = 0.4     # 0.25 #Noise scaling factor
@@ -53,13 +53,13 @@ DMF.update()
 
 start = time.perf_counter()
 
+
+
 # Simulating
 BOLD_signals, rates, t = DMF.Sim(verbose = True, return_rates = True)
 
 print(time.perf_counter() - start)
 
-
-#%%
 
 BOLD_signals = BOLD_signals[int(120/BOLD_dt):,:]
 
@@ -89,10 +89,20 @@ f_r,psd_rates = signal.welch(rates[90000:-60000],fs=1000,axis=0,nperseg=5000)
 #                                    olap=0.9,coldata=True,mode='corr',modeFCD='euclidean')
 
 
-#%% Plots
 
-BD.itauf = 1 / 0.6
-BD.BOLD_response.recompile()
+#%% BOLD 2
+
+BD.itauf = 1/0.3
+BD.itaus = 1/0.3
+BD.itauo = 1/0.3
+
+BD.update()
+
+DMF.G = 2        #Global coupling
+DMF.sigma = 0.2     # 0.25 #Noise scaling factor
+
+#Update new parameters
+DMF.update()
 
 BOLD2 = BD.Sim(rates, DMF.nnodes, 0.001)
 BOLD2 = BOLD2[int(120/0.001)::100]
@@ -106,7 +116,7 @@ f2_f,psd2_f = signal.welch(BOLD2_filt,fs=1/BOLD_dt,axis=0,nperseg=1500, noverlap
 FC2 = np.corrcoef(BOLD2_filt, rowvar=False)
 
 
-#%%
+#%% Plots
 
 ii=(1,2,3,4, 11,12,13,14)
 
@@ -225,14 +235,25 @@ BD.plot_deconvolution(results_1)
 BD.plot_deconvolution(results_2)
 
 
+
+# Peak (altura)
+peak_1 = np.max(results_1['hrfa_TR'][:, 0])
+peak_2 = np.max(results_2['hrfa_TR'][:, 0])
+print(f"Peak = {peak_1: .4f}")
+print(f"Peak = {peak_2: .4f}")
+
+
+# Time to peak 
+t2p_1 = np.argmax(results_1['hrfa_TR'][:, 0])
+t2p_2 = np.argmax(results_2['hrfa_TR'][:, 0])
+print(f"Peak at t={t2p_1: .2f} s")
+print(f"Peak at t={t2p_2: .2f} s")
+
+
+
+
+
 plt.close()
-
-
-
-
-
-
-
 
 # # Visualizar rates
 # time_rates = np.arange(rates.shape[0]) * DMF.dt * DMF.downsampling_rates
@@ -277,46 +298,46 @@ plt.close()
 
 
 
-#%% Comparar HRF con diferentes parámetros DMF
+# #%% Comparar HRF con diferentes parámetros DMF
 
-# --- Simulación 1: Parámetros originales ---
-DMF.G = 1.07
-DMF.sigma = 0.4
-DMF.update()
-BOLD_1, rates_1, t = DMF.Sim(verbose=True, return_rates=True)
+# # --- Simulación 1: Parámetros originales ---
+# DMF.G = 1.07
+# DMF.sigma = 0.4
+# DMF.update()
+# BOLD_1, rates_1, t = DMF.Sim(verbose=True, return_rates=True)
 
-# --- Simulación 2: Parámetros variados ---
-DMF.G = 2.0
-DMF.sigma = 0.8
-DMF.update()
-BOLD_2, rates_2, t = DMF.Sim(verbose=True, return_rates=True)
+# # --- Simulación 2: Parámetros variados ---
+# DMF.G = 2.0
+# DMF.sigma = 0.8
+# DMF.update()
+# BOLD_2, rates_2, t = DMF.Sim(verbose=True, return_rates=True)
 
-# --- Preprocesamiento ---
-BOLD_1 = BOLD_1[int(120/BOLD_dt):, :]
-BOLD_2 = BOLD_2[int(120/BOLD_dt):, :]
+# # --- Preprocesamiento ---
+# BOLD_1 = BOLD_1[int(120/BOLD_dt):, :]
+# BOLD_2 = BOLD_2[int(120/BOLD_dt):, :]
 
-BOLD_filt_1 = signal.filtfilt(a0, b0, BOLD_1, axis=0)
-BOLD_filt_2 = signal.filtfilt(a0, b0, BOLD_2, axis=0)
+# BOLD_filt_1 = signal.filtfilt(a0, b0, BOLD_1, axis=0)
+# BOLD_filt_2 = signal.filtfilt(a0, b0, BOLD_2, axis=0)
 
-BOLD_filt_1 = BOLD_filt_1[int(60/BOLD_dt):-int(60/BOLD_dt):10, :]  # TR=1
-BOLD_filt_2 = BOLD_filt_2[int(60/BOLD_dt):-int(60/BOLD_dt):10, :]
+# BOLD_filt_1 = BOLD_filt_1[int(60/BOLD_dt):-int(60/BOLD_dt):10, :]  # TR=1
+# BOLD_filt_2 = BOLD_filt_2[int(60/BOLD_dt):-int(60/BOLD_dt):10, :]
 
-# --- Estimación HRF ---
-para = BD.get_default_para(TR=1, estimation='canon2dd')
-results_1 = BD.rsHRF_estimate_HRF(BOLD_filt_1, para)
-results_2 = BD.rsHRF_estimate_HRF(BOLD_filt_2, para)
+# # --- Estimación HRF ---
+# para = BD.get_default_para(TR=1, estimation='canon2dd')
+# results_1 = BD.rsHRF_estimate_HRF(BOLD_filt_1, para)
+# results_2 = BD.rsHRF_estimate_HRF(BOLD_filt_2, para)
 
-# --- Plot ---
-plt.figure(figsize=(10, 6))
-time_hrf = para['TR'] * np.arange(1, results_1['hrfa_TR'].shape[0] + 1)
-plt.plot(time_hrf, results_1['hrfa_TR'][:, 0], 'b-', linewidth=2, label='G=1.07, σ=0.4')
-plt.plot(time_hrf, results_2['hrfa_TR'][:, 0], 'r-', linewidth=2, label='G=2.0, σ=0.8')
-plt.xlabel('Time (s)')
-plt.ylabel('Amplitude')
-plt.title('HRF Estimation: Original vs Modified DMF parameters')
-plt.legend()
-plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+# # --- Plot ---
+# plt.figure(figsize=(10, 6))
+# time_hrf = para['TR'] * np.arange(1, results_1['hrfa_TR'].shape[0] + 1)
+# plt.plot(time_hrf, results_1['hrfa_TR'][:, 0], 'b-', linewidth=2, label='G=1.07, σ=0.4')
+# plt.plot(time_hrf, results_2['hrfa_TR'][:, 0], 'r-', linewidth=2, label='G=2.0, σ=0.8')
+# plt.xlabel('Time (s)')
+# plt.ylabel('Amplitude')
+# plt.title('HRF Estimation: Original vs Modified DMF parameters')
+# plt.legend()
+# plt.grid(True, alpha=0.3)
+# plt.tight_layout()
+# plt.show()
 
 
