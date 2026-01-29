@@ -205,8 +205,8 @@ plt.plot(BOLD2_filt[:,::20],'--')
 
 
 # estimación HRF
-BOLD_filt_TR1 = BOLD_filt[::10, :]  # De TR=0.1 a TR=1
-BOLD_filt_TR2 = BOLD2_filt[::10, :]  # De TR=0.1 a TR=1
+BOLD_filt_TR1 = BOLD_filt[::10, :]  # subsamplear (TR de 0.1 a 1)
+BOLD_filt_TR2 = BOLD2_filt[::10, :]  # subsamplear (TR de 0.1 a 1)
 
 
 para = BD.get_default_para(TR = 1, estimation='canon2dd')
@@ -225,17 +225,49 @@ BD.plot_deconvolution(results_1)
 BD.plot_deconvolution(results_2)
 
 
+plt.close()
 
 
-# Visualizar rates
-time_rates = np.arange(rates.shape[0]) * DMF.dt * DMF.downsampling_rates
 
-plt.figure()
-plt.plot(time_rates[:50000], rates[:50000, :5])  # Primeros 50s, 5 nodos
-plt.xlabel('Tiempo (s)')
-plt.ylabel('Firing Rate (Hz)')
-plt.title('Actividad neuronal simulada (rates)')
-plt.show()
+
+
+
+
+
+# # Visualizar rates
+# time_rates = np.arange(rates.shape[0]) * DMF.dt * DMF.downsampling_rates
+
+# plt.figure()
+# plt.plot(time_rates[:50000], rates[:50000, :5])  # Primeros 50s, 5 nodos
+# plt.xlabel('Tiempo (s)')
+# plt.ylabel('Firing Rate (Hz)')
+# plt.title('Actividad neuronal simulada (rates)')
+# plt.show()
+
+
+
+
+
+
+# elementos por region
+# time to peak
+# fwhm
+# 
+# serie de tiempo original
+# serie de tiempo deconvolucionado
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

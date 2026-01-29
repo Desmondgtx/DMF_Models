@@ -615,3 +615,5 @@ if __name__ == "__main__":
     plt.tight_layout()
     plt.savefig('python_subjects.png', dpi=500, bbox_inches='tight')
     plt.show()
+    
+    plt.close()
