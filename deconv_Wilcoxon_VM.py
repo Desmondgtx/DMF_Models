@@ -327,9 +327,6 @@ print(f"\nCon Bonferroni (α = {alpha_corrected:.5f}): {len(sig_bonferroni)}")
 
 
 
-
-
-
 #%% HRF between different confounds
 
 # Select different confounds
@@ -369,8 +366,6 @@ print(f"Peak at t = {t2p_2: .2f} s")
 
 
 
-
-
 #%% Wilcoxon between different confounds
 
 
@@ -396,7 +391,6 @@ print(f"Índices: {sig_areas}")
 alpha_corrected = 0.05 / n_areas
 sig_bonferroni = np.where(p_values < alpha_corrected)[0]
 print(f"\nCon Bonferroni (α = {alpha_corrected:.5f}): {len(sig_bonferroni)}")
-
 
 
 
