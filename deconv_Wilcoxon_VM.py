@@ -5,7 +5,7 @@ Created on Wed Jan 28 22:38:02 2026
 @author: yangy
 """
 
-# Libraries
+#%% Libraries
 
 import numpy as np
 import pandas as pd
@@ -33,23 +33,23 @@ plt.switch_backend('QtAgg')
 
 def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False):
     """
-    Pipeline completo (replica fourD_rsHRF.demo_rsHRF):
-    1. Preprocesamiento: z-score + filtrado bandpass
-    2. Detección de eventos: picos locales > threshold
-    3. Generación de funciones base (canon2dd, gamma, etc.)
-    4. Estimación lag óptimo
-    5. Ajuste GLM 
-    6. Reconstrucción HRF = funciones_base × beta
-    7. Extracción parámetros (height, T2P, FWHM)
-    8. Deconvolución Wiener
+    Pipeline (replicates fourD_rsHRF.demo_rsHRF):
+    1. Preprocessing: z-score + bandpass filter
+    2. Event detection: local peaks > threshold
+    3. Base functions (canon2dd, gamma, etc.)
+    4. Lag estimtation
+    5. GLM 
+    6. HRF reconstruction = base functions × beta
+    7. Parameter Extraction (height, T2P, FWHM)
+    8. Wiener deconvolution
     
     ----------
     Parameters
-    bold_sig : Señal BOLD de entrada (array)
-    para : Parámetros de estimación (dict)
-    temporal_mask : Máscara temporal para excluir timepoints (array, opcional)
-    n_jobs : Número de cores para paralelización (-1 = todos)
-    wiener : True = Wiener iterativo, False = Wiener simple
+    bold_sig : BOLD Signal (input) (array)
+    para : Parameter estimation (dict)
+    temporal_mask : Temporal mask for excluding timepoints (opcional) (array)
+    n_jobs : Number of cores for paralelization Número de cores para paralelización (-1 = all)
+    wiener : True = Iterative Wiener, False = Simple Wiener
     
     -------
     Returns
@@ -61,25 +61,24 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
         bold_sig = bold_sig[:, np.newaxis]
     nobs, nvar = bold_sig.shape
     
-    
     # for time-series input(fourD_rsHRF.py línea 68)
     # bold_sig = np.nan_to_num(stats.zscore(bold_sig, ddof=1, axis=0))
     
-    # Filtro para deconvolución (fourD_rsHRF.py línea 80)
+    # Deconvolution Filter (fourD_rsHRF.py línea 80)
     bold_sig_deconv = processing.rest_filter.rest_IdealFilter(
         bold_sig, para['TR'], para['passband_deconvolve'])
     
-    # Filtro para estimación HRF (fourD_rsHRF.py línea 83)
+    # HRF estimation filter (fourD_rsHRF.py línea 83)
     bold_sig = processing.rest_filter.rest_IdealFilter(
         bold_sig, para['TR'], para['passband'])
     
-    # Estimación HRF (fourD_rsHRF.py líneas 89-98)
-    # Internamente utiliza: 
-    # (algunas funciones no se invocan directamente si no através de get_basis_function)
-    #   - wgr_BOLD_event_vector(): Detecta eventos (picos locales)
-    #   - get_basis_function(): Genera funciones base
-    #   - wgr_hrf_fit(): Estima lag óptimo + ajusta GLM
-    #   - knee.knee_pt(): Selecciona lag óptimo
+    # HRF estimation (fourD_rsHRF.py líneas 89-98)
+    # internally use: 
+    # (internal functions of get_basis_function)
+    #   - wgr_BOLD_event_vector(): Event detection (local peaks)
+    #   - get_basis_function(): Generates base functions
+    #   - wgr_hrf_fit(): Estimates optimus lag and adjust GLM
+    #   - knee.knee_pt(): Select optimus lag
     if para['estimation'] not in ['sFIR', 'FIR']:
         bf = basis_functions.basis_functions.get_basis_function(bold_sig.shape, para)
         beta_hrf, event_bold = utils.hrf_estimation.compute_hrf(
@@ -91,17 +90,16 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
             bold_sig, para, temporal_mask, n_jobs)
         hrfa = beta_hrf[:-1, :]
     
-    
-    # Extracción de parámetros HRF (fourD_rsHRF.py líneas 111)
+    # HRF parameter extraction (fourD_rsHRF.py líneas 111)
     PARA = np.zeros((3, nvar))
     for i in range(nvar):
         
-        # wgr_get_parameters retorna: [height, time_to_peak, fwhm]
+        # wgr_get_parameters returns: [height, time_to_peak, fwhm]
         PARA[:, i] = parameters.wgr_get_parameters(hrfa[:, i], para['TR'] / para['T'])
 
     hrfa_TR = signal.resample_poly(hrfa, 1, para['T']) if para['T'] > 1 else hrfa
     
-    # Deconvolución (fourD_rsHRF.py líneas 121)
+    # Deconvolution (fourD_rsHRF.py líneas 121)
     data_deconv = np.zeros(bold_sig.shape)
     for i in range(nvar):
         hrf = hrfa_TR[:, i]
@@ -110,7 +108,7 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
                 bold_sig_deconv[:, i], hrf
             )
         else:
-            # Deconvolución Wiener simple: s = F^-1{ H* × M / (|H|² + λ) }
+            # Wiener simple deconvolution: s = F^-1{ H* × M / (|H|² + λ) }
             H = np.fft.fft(np.append(hrf, np.zeros(nobs - len(hrf))))
             M = np.fft.fft(bold_sig_deconv[:, i])
             data_deconv[:, i] = np.real(np.fft.ifft(
@@ -118,13 +116,13 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
             ))
     
     return {
-        'hrfa': hrfa,              # HRF a resolución microtime (T bins por TR)
-        'hrfa_TR': hrfa_TR,        # HRF resampleada a TR
-        'event_bold': event_bold,  # Índices de eventos detectados
+        'hrfa': hrfa,              # HRF microtime resolution (T bins por TR)
+        'hrfa_TR': hrfa_TR,        # HRF resampled to TR
+        'event_bold': event_bold,  # Event detection index
         'PARA': PARA,              # [height, time_to_peak, fwhm] × nvoxels
-        'bold_sig': bold_sig,      # Señal BOLD filtrada
-        'data_deconv': data_deconv,# Señal deconvolucionada
-        'para': para
+        'bold_sig': bold_sig,      # Filtered BOLD signal
+        'data_deconv': data_deconv,# Deconvolution signal
+        'para': para               # Parameters
     }
 
 
@@ -149,7 +147,7 @@ def get_default_para(TR, estimation='canon2dd'):
     dict con parametros
     """
     para = {
-        'TR': TR,
+        'TR': TR,                              # Repetition Time
         'T': 1,                                # Microtime resolution (bins per TR)
         'T0': 1,                               # Microtime onset (reference bin)
         'AR_lag': 0,                           # AR order for autocorrelation correction
@@ -186,7 +184,7 @@ def plot_hrf(results, pos=0):
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
     plt.title('Estimated HRF')
-    plt.savefig('estimación_HRF.png', dpi=500)
+    # plt.savefig('estimación_HRF.png', dpi=500)
 
 
 def plot_deconvolution(results, pos=0):
@@ -211,26 +209,26 @@ def plot_deconvolution(results, pos=0):
     plt.setp(markerline, 'color', 'k', 'markersize', 3, 'marker', 'd')
     plt.legend(['BOLD', 'Deconvolved BOLD', 'Events'], loc='best')
     plt.xlabel('time (s)')
-    plt.savefig('deconvolución.png', dpi=500)
+    # plt.savefig('deconvolución.png', dpi=500)
+
 
 
 #%%
-
-
 
 # Import data
 
 ## Subject 01
 subject_01 = image.load_img("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restawake_run-1_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz")
+
+# Confounds
 confounds_tsv_01 = ("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restawake_run-1_desc-confounds_timeseries.tsv")
 confounds_01 = pd.read_csv(confounds_tsv_01, sep="\t")
-
 confound_cols = ["csf", 
                  "white_matter",
                  "global_signal"]
-
 confounds_selected = confounds_01[confound_cols]
 
+# Atlas
 atlas = datasets.fetch_atlas_schaefer_2018(
     n_rois=100,
     yeo_networks=7,
@@ -239,6 +237,7 @@ atlas = datasets.fetch_atlas_schaefer_2018(
 atlas_img = atlas.maps
 labels = atlas.labels
 
+# Masker
 masker = NiftiLabelsMasker(
     labels_img=atlas_img,
     standardize=True,
@@ -249,51 +248,38 @@ masker = NiftiLabelsMasker(
     verbose=1
 )
 
-time_series_01 = masker.fit_transform(
-    subject_01,
-    confounds=confounds_selected)
+# Final Variable
+time_series_01 = masker.fit_transform(subject_01, confounds=confounds_selected)
 
 
 #%%
 
 ## Subject 02
 subject_02 = image.load_img("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restdeep_run-1_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz")
+
+# Confounds
 confounds_tsv_02 = ("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restdeep_run-1_desc-confounds_timeseries.tsv")
 confounds_02 = pd.read_csv(confounds_tsv_02, sep="\t")
 
-# atlas = datasets.fetch_atlas_schaefer_2018(n_rois=100,
-#                                            yeo_networks=7,
-#                                            resolution_mm=2)
-
-# confound_cols = ["csf", 
-#                  "white_matter",
-#                  "global_signal"]
-
-# confounds_selected = confounds_01[confound_cols]
+# Final Variable
+time_series_02 = masker.fit_transform(subject_02, confounds=confounds_selected)
 
 
-time_series_02 = masker.fit_transform(
-    subject_02,
-    confounds=confounds_selected)
-
-#%% rsHRF
+#%% rsHRF between conditions
 
 para = get_default_para(TR=2)
-results_1 = rsHRF_estimate_HRF(time_series_01, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
-results_2 = rsHRF_estimate_HRF(time_series_02, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
+results_1 = rsHRF_estimate_HRF(time_series_01, para) # [height, time_to_peak, fwhm] × areas
+results_2 = rsHRF_estimate_HRF(time_series_02, para) # [height, time_to_peak, fwhm] × areas
 
-
-
+# Plot difference
 plot_hrf(results_1)
 plot_hrf(results_2)
-
 
 # Peak (altura)
 peak_1 = np.max(results_1['hrfa_TR'][:, 0])
 peak_2 = np.max(results_2['hrfa_TR'][:, 0])
 print(f"Peak = {peak_1: .4f}")
 print(f"Peak = {peak_2: .4f}")
-
 
 # Time to peak 
 t2p_1 = np.argmax(results_1['hrfa_TR'][:, 0]) * para['TR']
@@ -303,69 +289,70 @@ print(f"Peak at t={t2p_2: .2f} s")
 
 
 
-### PRUEBA HACER UN WILCOXON ENTRE PEAK HEIGHT DE CADA AREA CON RESPECTO A SI MISMA 
-### DEPENDIENDO DE LA CONDICIÓN (TEST ESTADÍSTICO DE 100 
-### (areas en awake) x 100(areas en propofol))
-
-
+### PRUEBA HACER UN WILCOXON ENTRE PEAK HEIGHT DE CADA AREA CON RESPECTO A SI MISMA
+### (TEST ESTADÍSTICO DE 100 (areas en awake) x 100(areas en propofol))
 
 ## Wilcoxon Rank
 
+# Save data
+# data = pd.DataFrame(results_1['hrfa'])
+# data.to_csv('results_1.csv')
 
-stats.wilcoxon(results_1['hrfa_TR'], results_2['hrfa_TR'])
-
-import pandas as pd
-
-data = pd.DataFrame(results_1['hrfa'])
-data.to_csv('results_1.csv')
-
-data_2 = pd.DataFrame(results_2['hrfa'])
-data_2.to_csv('results_2.csv')
+# data_2 = pd.DataFrame(results_2['hrfa'])
+# data_2.to_csv('results_2.csv')
 
 
+# Arrays: (timepoints, áreas) = (17, 100)
+hrfa_1 = results_1['hrfa_TR']  # Awake
+hrfa_2 = results_2['hrfa_TR']  # Propofol
+
+n_areas = hrfa_1.shape[1]
+p_values = np.zeros(n_areas)
+statistics = np.zeros(n_areas)
+
+for i in range(n_areas):
+    stat, p = stats.wilcoxon(hrfa_1[:, i], hrfa_2[:, i])
+    statistics[i] = stat
+    p_values[i] = p
+
+# Áreas significativas (sin corrección)
+sig_areas = np.where(p_values < 0.05)[0]
+print(f"Áreas significativas (p < 0.05): {len(sig_areas)}/{n_areas}")
+print(f"Índices: {sig_areas}")
+
+# Con corrección Bonferroni
+alpha_corrected = 0.05 / n_areas
+sig_bonferroni = np.where(p_values < alpha_corrected)[0]
+print(f"\nCon Bonferroni (α = {alpha_corrected:.5f}): {len(sig_bonferroni)}")
 
 
-hrfa_1 = results_1['hrfa'].flatten()
-hrfa_2 = results_2['hrfa'].flatten()
-
-stat, p = stats.wilcoxon(hrfa_1, hrfa_2)
-
-plt.figure(figsize=(6, 5))
-bp = plt.boxplot([hrfa_1, hrfa_2], labels=['Awake', 'Propofol'], patch_artist=True)
-bp['boxes'][0].set_facecolor([0.4, 0.7, 0.9])
-bp['boxes'][1].set_facecolor([0.9, 0.5, 0.4])
-plt.ylabel('HRF Amplitude')
-plt.title(f'Wilcoxon p = {p:.4f}' + (' *' if p < 0.05 else ''))
-plt.savefig('wilcoxon_global.png', dpi=300)
-plt.show()
-
-#%% confounds distintos
 
 
+
+
+#%% HRF between different confounds
+
+# Select different confounds
 confound_cols_2 = ["csf", 
                  "white_matter",
                  "global_signal",
                  "csf_wm"]
-
 confounds_selected_2 = confounds_01[confound_cols_2]
 
-time_series_03 = masker.fit_transform(
-    subject_01,
-    confounds=confounds_selected_2)
-
+# Final Variables
+time_series_03 = masker.fit_transform(subject_01, confounds=confounds_selected_2)
 time_series_04 = masker.fit_transform(subject_01)
 
+# Parameters for estimation
+para = get_default_para(TR = 2, estimation = 'canon2dd')
 
-
-para = get_default_para(TR=2)
+# Get HRF
 results_3 = rsHRF_estimate_HRF(time_series_03, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
 results_4 = rsHRF_estimate_HRF(time_series_04, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
 
-
-
+# Plot HRF
 plot_hrf(results_3)
 plot_hrf(results_4)
-
 
 # Peak (altura)
 peak_1 = np.max(results_3['hrfa_TR'][:, 0]) 
@@ -377,13 +364,45 @@ print(f"Peak = {peak_2: .4f}")
 # Time to peak 
 t2p_1 = np.argmax(results_3['hrfa_TR'][:, 0]) * para['TR']
 t2p_2 = np.argmax(results_4['hrfa_TR'][:, 0]) * para['TR']
-print(f"Peak at t={t2p_1: .2f} s")
-print(f"Peak at t={t2p_2: .2f} s")
+print(f"Peak at t = {t2p_1: .2f} s")
+print(f"Peak at t = {t2p_2: .2f} s")
 
 
 
 
-plt.figure()
-plt.plot(results_1['hrfa_TR'])
-plt.xlabel('Time (bins)')
-plt.show()
+
+#%% Wilcoxon between different confounds
+
+
+# Arrays: (timepoints, áreas) = (17, 100)
+hrfa_3 = results_3['hrfa_TR']  # Awake
+hrfa_4 = results_4['hrfa_TR']  # Propofol
+
+n_areas = hrfa_1.shape[1]
+p_values = np.zeros(n_areas)
+statistics = np.zeros(n_areas)
+
+for i in range(n_areas):
+    stat, p = stats.wilcoxon(hrfa_3[:, i], hrfa_4[:, i])
+    statistics[i] = stat
+    p_values[i] = p
+
+# Áreas significativas (sin corrección)
+sig_areas = np.where(p_values < 0.05)[0]
+print(f"Áreas significativas (p < 0.05): {len(sig_areas)}/{n_areas}")
+print(f"Índices: {sig_areas}")
+
+# Con corrección Bonferroni
+alpha_corrected = 0.05 / n_areas
+sig_bonferroni = np.where(p_values < alpha_corrected)[0]
+print(f"\nCon Bonferroni (α = {alpha_corrected:.5f}): {len(sig_bonferroni)}")
+
+
+
+
+#%% Plot all HRF from every area
+
+# plt.figure()
+# plt.plot(results_1['hrfa_TR'])
+# plt.xlabel('Time (bins)')
+# plt.show()

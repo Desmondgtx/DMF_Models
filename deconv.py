@@ -29,23 +29,23 @@ plt.switch_backend('QtAgg')
 
 def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False):
     """
-    Pipeline completo (replica fourD_rsHRF.demo_rsHRF):
-    1. Preprocesamiento: z-score + filtrado bandpass
-    2. Detección de eventos: picos locales > threshold
-    3. Generación de funciones base (canon2dd, gamma, etc.)
-    4. Estimación lag óptimo
-    5. Ajuste GLM 
-    6. Reconstrucción HRF = funciones_base × beta
-    7. Extracción parámetros (height, T2P, FWHM)
-    8. Deconvolución Wiener
+    Pipeline (replicates fourD_rsHRF.demo_rsHRF):
+    1. Preprocessing: z-score + bandpass filter
+    2. Event detection: local peaks > threshold
+    3. Base functions (canon2dd, gamma, etc.)
+    4. Lag estimtation
+    5. GLM 
+    6. HRF reconstruction = base functions × beta
+    7. Parameter Extraction (height, T2P, FWHM)
+    8. Wiener deconvolution
     
     ----------
     Parameters
-    bold_sig : Señal BOLD de entrada (array)
-    para : Parámetros de estimación (dict)
-    temporal_mask : Máscara temporal para excluir timepoints (array, opcional)
-    n_jobs : Número de cores para paralelización (-1 = todos)
-    wiener : True = Wiener iterativo, False = Wiener simple
+    bold_sig : BOLD Signal (input) (array)
+    para : Parameter estimation (dict)
+    temporal_mask : Temporal mask for excluding timepoints (opcional) (array)
+    n_jobs : Number of cores for paralelization Número de cores para paralelización (-1 = all)
+    wiener : True = Iterative Wiener, False = Simple Wiener
     
     -------
     Returns
@@ -57,25 +57,24 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
         bold_sig = bold_sig[:, np.newaxis]
     nobs, nvar = bold_sig.shape
     
-    
     # for time-series input(fourD_rsHRF.py línea 68)
     # bold_sig = np.nan_to_num(stats.zscore(bold_sig, ddof=1, axis=0))
     
-    # Filtro para deconvolución (fourD_rsHRF.py línea 80)
+    # Deconvolution Filter (fourD_rsHRF.py línea 80)
     bold_sig_deconv = processing.rest_filter.rest_IdealFilter(
         bold_sig, para['TR'], para['passband_deconvolve'])
     
-    # Filtro para estimación HRF (fourD_rsHRF.py línea 83)
+    # HRF estimation filter (fourD_rsHRF.py línea 83)
     bold_sig = processing.rest_filter.rest_IdealFilter(
         bold_sig, para['TR'], para['passband'])
     
-    # Estimación HRF (fourD_rsHRF.py líneas 89-98)
-    # Internamente utiliza: 
-    # (algunas funciones no se invocan directamente si no através de get_basis_function)
-    #   - wgr_BOLD_event_vector(): Detecta eventos (picos locales)
-    #   - get_basis_function(): Genera funciones base
-    #   - wgr_hrf_fit(): Estima lag óptimo + ajusta GLM
-    #   - knee.knee_pt(): Selecciona lag óptimo
+    # HRF estimation (fourD_rsHRF.py líneas 89-98)
+    # internally use: 
+    # (internal functions of get_basis_function)
+    #   - wgr_BOLD_event_vector(): Event detection (local peaks)
+    #   - get_basis_function(): Generates base functions
+    #   - wgr_hrf_fit(): Estimates optimus lag and adjust GLM
+    #   - knee.knee_pt(): Select optimus lag
     if para['estimation'] not in ['sFIR', 'FIR']:
         bf = basis_functions.basis_functions.get_basis_function(bold_sig.shape, para)
         beta_hrf, event_bold = utils.hrf_estimation.compute_hrf(
@@ -87,17 +86,16 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
             bold_sig, para, temporal_mask, n_jobs)
         hrfa = beta_hrf[:-1, :]
     
-    
-    # Extracción de parámetros HRF (fourD_rsHRF.py líneas 111)
+    # HRF parameter extraction (fourD_rsHRF.py líneas 111)
     PARA = np.zeros((3, nvar))
     for i in range(nvar):
         
-        # wgr_get_parameters retorna: [height, time_to_peak, fwhm]
+        # wgr_get_parameters returns: [height, time_to_peak, fwhm]
         PARA[:, i] = parameters.wgr_get_parameters(hrfa[:, i], para['TR'] / para['T'])
 
     hrfa_TR = signal.resample_poly(hrfa, 1, para['T']) if para['T'] > 1 else hrfa
     
-    # Deconvolución (fourD_rsHRF.py líneas 121)
+    # Deconvolution (fourD_rsHRF.py líneas 121)
     data_deconv = np.zeros(bold_sig.shape)
     for i in range(nvar):
         hrf = hrfa_TR[:, i]
@@ -106,7 +104,7 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
                 bold_sig_deconv[:, i], hrf
             )
         else:
-            # Deconvolución Wiener simple: s = F^-1{ H* × M / (|H|² + λ) }
+            # Wiener simple deconvolution: s = F^-1{ H* × M / (|H|² + λ) }
             H = np.fft.fft(np.append(hrf, np.zeros(nobs - len(hrf))))
             M = np.fft.fft(bold_sig_deconv[:, i])
             data_deconv[:, i] = np.real(np.fft.ifft(
@@ -114,13 +112,13 @@ def rsHRF_estimate_HRF(bold_sig, para, temporal_mask=[], n_jobs=-1, wiener=False
             ))
     
     return {
-        'hrfa': hrfa,              # HRF a resolución microtime (T bins por TR)
-        'hrfa_TR': hrfa_TR,        # HRF resampleada a TR
-        'event_bold': event_bold,  # Índices de eventos detectados
+        'hrfa': hrfa,              # HRF microtime resolution (T bins por TR)
+        'hrfa_TR': hrfa_TR,        # HRF resampled to TR
+        'event_bold': event_bold,  # Event detection index
         'PARA': PARA,              # [height, time_to_peak, fwhm] × nvoxels
-        'bold_sig': bold_sig,      # Señal BOLD filtrada
-        'data_deconv': data_deconv,# Señal deconvolucionada
-        'para': para
+        'bold_sig': bold_sig,      # Filtered BOLD signal
+        'data_deconv': data_deconv,# Deconvolution signal
+        'para': para               # Parameters
     }
 
 
@@ -145,7 +143,7 @@ def get_default_para(TR, estimation='canon2dd'):
     dict con parametros
     """
     para = {
-        'TR': TR,
+        'TR': TR,                              # Repetition Time
         'T': 1,                                # Microtime resolution (bins per TR)
         'T0': 1,                               # Microtime onset (reference bin)
         'AR_lag': 0,                           # AR order for autocorrelation correction
