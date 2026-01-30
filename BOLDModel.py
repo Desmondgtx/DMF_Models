@@ -168,6 +168,7 @@ def ParamsBOLD():
         
     return pardict    
     
+
 #%% Plots
 
 if __name__=="__main__":
@@ -203,8 +204,7 @@ if __name__=="__main__":
     # plt.title("y3")
 
     plt.tight_layout()
-    plt.show()
-    
+    plt.show()    
     
     y = np.vstack((y1,y2,y3)).T
     

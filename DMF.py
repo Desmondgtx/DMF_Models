@@ -1,13 +1,15 @@
 #%% Libraries
 
 import numpy as np
-import deconvolution_comparacion as BD
+import BOLDModel as BD
 from scipy import signal
 from numba import jit,float64, vectorize,njit
 from numba.core.errors import NumbaPerformanceWarning
+import matplotlib.pyplot as plt    
 import warnings
 warnings.simplefilter('ignore', category=NumbaPerformanceWarning)
 
+import deconv as DC
 
 #%% Parameters
 
@@ -18,9 +20,9 @@ SC /= np.mean(np.sum(SC,0))
 nnodes = len(SC)
 
 #Simulation parameters
-tmax = 780 #time in seconds
-dt = 0.001 #integration step in seconds
-downsampling = 1000 #BOLD downsampling
+tmax = 780              #time in seconds
+dt = 0.001              #integration step in seconds
+downsampling = 1000     #BOLD downsampling
 downsampling_rates = 10 #Firing rates downsampling
 
 #Model parameters
@@ -212,8 +214,7 @@ def ParamsNode():
  
 if __name__=="__main__":
     
-    import matplotlib.pyplot as plt    
-
+    
     G = 1.07
     sigma=0.1
     update()
@@ -232,7 +233,6 @@ if __name__=="__main__":
     FC = np.corrcoef(BOLD_filt.T) #Functional Connectivity (FC) matrix
     mean_corr = np.mean(FC)
     print(mean_corr) 
-
     
 
     # Plot FC matrix
@@ -247,6 +247,7 @@ if __name__=="__main__":
     plt.plot(BOLD_filt); 
     
     
+    # Deconv and estimate from BOLD filt signal
     para = BD.get_default_para(TR = 1, estimation = 'canon2dd')
     results = BD.rsHRF_estimate_HRF(BOLD_filt, para)
     BD.plot_hrf(results)

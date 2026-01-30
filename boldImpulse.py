@@ -24,8 +24,8 @@ x_t[time==35]=20
 BOLD = bd.Sim(x_t[:,None], nnodes, dt) # Sim(re, nnodes, dt)
 
 # Change Variables
-bd.itauf = 5        # Gamma
-bd.itaus = 1/0.8    # Kappa
+bd.itauf = 1 / 0.5    # Gamma
+bd.itaus = 1 / 0.8    # Kappa
 
 # Recompile with new values
 bd.update()
@@ -45,7 +45,7 @@ ax1.plot(time,BOLD2, color='r')
 ax2 = ax1.twinx()
 ax2.plot(time,x_t, 'g')
 ax2.set_ylim((-10,250))
-ax1.set_ylim((-0.0005,0.0025))
+ax1.set_ylim((-0.0005,0.0030))
 plt.xlabel("Tiempo (s)")
 ax1.set_ylabel("Señal BOLD", color='C0')
 ax2.set_ylabel("Estímulo", color='g')

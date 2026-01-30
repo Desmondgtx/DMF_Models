@@ -8,14 +8,10 @@ Created on Wed Jan 28 22:38:02 2026
 # Libraries
 
 import numpy as np
-import pandas as pd
 
 import scipy.stats as stats
 from scipy import signal
 from scipy.sparse import lil_matrix
-
-from nilearn import image, datasets
-from nilearn.input_data import NiftiLabelsMasker
 
 # rsHRF
 from rsHRF import processing       # rest_filter.rest_IdealFilter (filtrado bandpass)
@@ -186,7 +182,7 @@ def plot_hrf(results, pos=0):
     plt.xlabel('Time (s)')
     plt.ylabel('Amplitude')
     plt.title('Estimated HRF')
-    plt.savefig('estimación_HRF.png', dpi=500)
+    # plt.savefig('estimación_HRF.png', dpi=500)
 
 
 def plot_deconvolution(results, pos=0):
@@ -211,179 +207,5 @@ def plot_deconvolution(results, pos=0):
     plt.setp(markerline, 'color', 'k', 'markersize', 3, 'marker', 'd')
     plt.legend(['BOLD', 'Deconvolved BOLD', 'Events'], loc='best')
     plt.xlabel('time (s)')
-    plt.savefig('deconvolución.png', dpi=500)
+    # plt.savefig('deconvolución.png', dpi=500)
 
-
-#%%
-
-
-
-# Import data
-
-## Subject 01
-subject_01 = image.load_img("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restawake_run-1_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz")
-confounds_tsv_01 = ("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restawake_run-1_desc-confounds_timeseries.tsv")
-confounds_01 = pd.read_csv(confounds_tsv_01, sep="\t")
-
-confound_cols = ["csf", 
-                 "white_matter",
-                 "global_signal"]
-
-confounds_selected = confounds_01[confound_cols]
-
-atlas = datasets.fetch_atlas_schaefer_2018(
-    n_rois=100,
-    yeo_networks=7,
-    resolution_mm=2)
-
-atlas_img = atlas.maps
-labels = atlas.labels
-
-masker = NiftiLabelsMasker(
-    labels_img=atlas_img,
-    standardize=True,
-    detrend=True,
-    low_pass=0.1,
-    high_pass=0.01,
-    t_r=2.0,
-    verbose=1
-)
-
-time_series_01 = masker.fit_transform(
-    subject_01,
-    confounds=confounds_selected)
-
-
-#%%
-
-## Subject 02
-subject_02 = image.load_img("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restdeep_run-1_space-MNI152NLin2009cAsym_desc-preproc_bold.nii.gz")
-confounds_tsv_02 = ("C:/Users/yangy/Desktop/DMF_Models/Subjects Medel/sub-02CB_task-restdeep_run-1_desc-confounds_timeseries.tsv")
-confounds_02 = pd.read_csv(confounds_tsv_02, sep="\t")
-
-# atlas = datasets.fetch_atlas_schaefer_2018(n_rois=100,
-#                                            yeo_networks=7,
-#                                            resolution_mm=2)
-
-# confound_cols = ["csf", 
-#                  "white_matter",
-#                  "global_signal"]
-
-# confounds_selected = confounds_01[confound_cols]
-
-
-time_series_02 = masker.fit_transform(
-    subject_02,
-    confounds=confounds_selected)
-
-#%% rsHRF
-
-para = get_default_para(TR=2)
-results_1 = rsHRF_estimate_HRF(time_series_01, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
-results_2 = rsHRF_estimate_HRF(time_series_02, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
-
-
-
-plot_hrf(results_1)
-plot_hrf(results_2)
-
-
-# Peak (altura)
-peak_1 = np.max(results_1['hrfa_TR'][:, 0])
-peak_2 = np.max(results_2['hrfa_TR'][:, 0])
-print(f"Peak = {peak_1: .4f}")
-print(f"Peak = {peak_2: .4f}")
-
-
-# Time to peak 
-t2p_1 = np.argmax(results_1['hrfa_TR'][:, 0]) * para['TR']
-t2p_2 = np.argmax(results_2['hrfa_TR'][:, 0]) * para['TR']
-print(f"Peak at t={t2p_1: .2f} s")
-print(f"Peak at t={t2p_2: .2f} s")
-
-
-
-### PRUEBA HACER UN WILCOXON ENTRE PEAK HEIGHT DE CADA AREA CON RESPECTO A SI MISMA 
-### DEPENDIENDO DE LA CONDICIÓN (TEST ESTADÍSTICO DE 100 
-### (areas en awake) x 100(areas en propofol))
-
-
-
-## Wilcoxon Rank
-
-
-stats.wilcoxon(results_1['hrfa_TR'], results_2['hrfa_TR'])
-
-import pandas as pd
-
-data = pd.DataFrame(results_1['hrfa'])
-data.to_csv('results_1.csv')
-
-data_2 = pd.DataFrame(results_2['hrfa'])
-data_2.to_csv('results_2.csv')
-
-
-
-
-hrfa_1 = results_1['hrfa'].flatten()
-hrfa_2 = results_2['hrfa'].flatten()
-
-stat, p = stats.wilcoxon(hrfa_1, hrfa_2)
-
-plt.figure(figsize=(6, 5))
-bp = plt.boxplot([hrfa_1, hrfa_2], labels=['Awake', 'Propofol'], patch_artist=True)
-bp['boxes'][0].set_facecolor([0.4, 0.7, 0.9])
-bp['boxes'][1].set_facecolor([0.9, 0.5, 0.4])
-plt.ylabel('HRF Amplitude')
-plt.title(f'Wilcoxon p = {p:.4f}' + (' *' if p < 0.05 else ''))
-plt.savefig('wilcoxon_global.png', dpi=300)
-plt.show()
-
-#%% confounds distintos
-
-
-confound_cols_2 = ["csf", 
-                 "white_matter",
-                 "global_signal",
-                 "csf_wm"]
-
-confounds_selected_2 = confounds_01[confound_cols_2]
-
-time_series_03 = masker.fit_transform(
-    subject_01,
-    confounds=confounds_selected_2)
-
-time_series_04 = masker.fit_transform(subject_01)
-
-
-
-para = get_default_para(TR=2)
-results_3 = rsHRF_estimate_HRF(time_series_03, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
-results_4 = rsHRF_estimate_HRF(time_series_04, para, n_jobs=1) # [height, time_to_peak, fwhm] × areas
-
-
-
-plot_hrf(results_3)
-plot_hrf(results_4)
-
-
-# Peak (altura)
-peak_1 = np.max(results_3['hrfa_TR'][:, 0]) 
-peak_2 = np.max(results_4['hrfa_TR'][:, 0])
-print(f"Peak = {peak_1: .4f}")
-print(f"Peak = {peak_2: .4f}")
-
-
-# Time to peak 
-t2p_1 = np.argmax(results_3['hrfa_TR'][:, 0]) * para['TR']
-t2p_2 = np.argmax(results_4['hrfa_TR'][:, 0]) * para['TR']
-print(f"Peak at t={t2p_1: .2f} s")
-print(f"Peak at t={t2p_2: .2f} s")
-
-
-
-
-plt.figure()
-plt.plot(results_1['hrfa_TR'])
-plt.xlabel('Time (bins)')
-plt.show()
