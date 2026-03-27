@@ -26,7 +26,7 @@ from rsHRF import iterative_wiener_deconv  # Wiener deconvolution iterative
 
 # Import MATLAB and set backend
 import matplotlib.pyplot as plt
-plt.switch_backend('QtAgg')
+plt.switch_backend('TkAgg')
 
 
 #%% rsHRF Pipeline Function
@@ -268,12 +268,16 @@ time_series_02 = masker.fit_transform(subject_02, confounds=confounds_selected)
 #%% rsHRF between conditions
 
 para = get_default_para(TR=2)
+
+
 results_1 = rsHRF_estimate_HRF(time_series_01, para) # [height, time_to_peak, fwhm] × areas
 results_2 = rsHRF_estimate_HRF(time_series_02, para) # [height, time_to_peak, fwhm] × areas
 
 # Plot difference
 plot_hrf(results_1)
 plot_hrf(results_2)
+
+plot_deconvolution(results_1)
 
 # Peak (altura)
 peak_1 = np.max(results_1['hrfa_TR'][:, 0])
